@@ -1,0 +1,55 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Import Keywords{% endblock %}
+{% block page_title %}Import keywords{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-body">
+      <div class="text-muted mb-3">
+        Paste one keyword per line. Optional: include country, language, city, device if your importer supports it.
+      </div>
+
+      <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label">Project</label>
+          <select name="project" class="form-select" required>
+            <option value="">Select</option>
+            {% for p in projects %}
+              <option value="{{ p.id }}">{{ p.client.name }} | {{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Keywords</label>
+          <textarea name="keywords" class="form-control" rows="12" placeholder="keyword 1&#10;keyword 2&#10;keyword 3"></textarea>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <button class="btn btn-primary" type="submit">Import</button>
+          <a class="btn btn-outline-secondary" href="/keywords/">Back</a>
+        </div>
+      </form>
+
+      {% if imported_count is not None %}
+        <div class="alert alert-success mt-3">
+          Imported: {{ imported_count }}
+        </div>
+      {% endif %}
+
+      {% if errors %}
+        <div class="alert alert-danger mt-3">
+          <div class="fw-semibold mb-2">Errors</div>
+          <ul class="mb-0">
+            {% for e in errors %}
+              <li>{{ e }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

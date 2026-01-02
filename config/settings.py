@@ -43,6 +43,12 @@ INSTALLED_APPS = [
 
     "django_filters",
     "core",
+    "geo",
+    "projects",
+    "serp",
+    "planner",
+    "integrations",
+    "jobs",
 ]
 
 MIDDLEWARE = [
@@ -146,7 +152,13 @@ MEDIA_ROOT = BASE_DIR / "media"
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 TEMPLATES[0]["DIRS"] = [BASE_DIR / "templates"]
 
-
 DATAFORSEO_BASE_URL = os.getenv("DATAFORSEO_BASE_URL", "https://api.dataforseo.com/v3")
 DATAFORSEO_LOGIN = os.getenv("DATAFORSEO_LOGIN", "")
 DATAFORSEO_PASSWORD = os.getenv("DATAFORSEO_PASSWORD", "")
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+GOOGLE_ADS_DEVELOPER_TOKEN = os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN", "")
+GOOGLE_ADS_CLIENT_ID = os.getenv("GOOGLE_ADS_CLIENT_ID", "")
+GOOGLE_ADS_CLIENT_SECRET = os.getenv("GOOGLE_ADS_CLIENT_SECRET", "")
+GOOGLE_ADS_REFRESH_TOKEN = os.getenv("GOOGLE_ADS_REFRESH_TOKEN", "")
+GOOGLE_ADS_LOGIN_CUSTOMER_ID = os.getenv("GOOGLE_ADS_LOGIN_CUSTOMER_ID", "")

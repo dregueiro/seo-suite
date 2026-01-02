@@ -85,9 +85,8 @@ def build_snapshots_for_run(run: SerpRun, keyword_ids: list[int]) -> int:
                 top_domain=top_domain,
                 top_position=top_position,
                 top_url=top_url,
-                top3 = rows[:3]
-                top3_domains = [normalize_domain(r.domain) for r in top3]
-                top3_urls = [(r.url or "") for r in top3]
+                top3_domains=top3_domains,
+                top3_urls=top3_urls,
             )
         )
 

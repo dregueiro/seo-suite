@@ -1,0 +1,167 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Keyword Planner{% endblock %}
+
+{% block content %}
+<div class="page-wrapper">
+  <div class="page-header d-print-none">
+    <div class="container-xl">
+      <div class="row g-2 align-items-center">
+        <div class="col">
+          <h2 class="page-title">Keyword Planner</h2>
+          <div class="text-secondary">Proyecto: <strong>{{ project }}</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-body">
+    <div class="container-xl">
+      <div class="row row-cards">
+
+        <!-- FORM -->
+        <div class="col-12 col-lg-5">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Buscar keywords similares</h3>
+            </div>
+            <div class="card-body">
+              <form method="post" novalidate>
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                  <div class="alert alert-danger">
+                    {{ form.non_field_errors }}
+                  </div>
+                {% endif %}
+
+                <div class="mb-3">
+                  <label class="form-label">{{ form.seed_keyword.label }}</label>
+                  {{ form.seed_keyword }}
+                  {% if form.seed_keyword.errors %}
+                    <div class="invalid-feedback d-block">{{ form.seed_keyword.errors|join:", " }}</div>
+                  {% endif %}
+                </div>
+
+                <div class="row">
+                  <div class="col-12 col-md-6 mb-3">
+                    <label class="form-label">{{ form.country.label }}</label>
+                    {{ form.country }}
+                    {% if form.country.errors %}
+                      <div class="invalid-feedback d-block">{{ form.country.errors|join:", " }}</div>
+                    {% endif %}
+                  </div>
+
+                  <div class="col-12 col-md-6 mb-3">
+                    <label class="form-label">{{ form.language.label }}</label>
+                    {{ form.language }}
+                    {% if form.language.errors %}
+                      <div class="invalid-feedback d-block">{{ form.language.errors|join:", " }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label">{{ form.top_n.label }}</label>
+                  {{ form.top_n }}
+                  {% if form.top_n.errors %}
+                    <div class="invalid-feedback d-block">{{ form.top_n.errors|join:", " }}</div>
+                  {% endif %}
+                </div>
+
+                <!-- ✅ Paso 3: checkbox fallback (costo extra) -->
+                <div class="mb-3 form-check">
+                  {{ form.use_fallback }}
+                  <label class="form-check-label" for="{{ form.use_fallback.id_for_label }}">
+                    {{ form.use_fallback.label }}
+                  </label>
+                  <div class="text-secondary small">
+                    Úsalo solo si el resultado sale vacío. Hace una request adicional (costo extra).
+                  </div>
+                  {% if form.use_fallback.errors %}
+                    <div class="invalid-feedback d-block">{{ form.use_fallback.errors|join:", " }}</div>
+                  {% endif %}
+                </div>
+
+                <div class="d-flex gap-2">
+                  <button type="submit" class="btn btn-primary">Buscar</button>
+                  <a href="" class="btn btn-outline-secondary">Limpiar</a>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- RESULTS -->
+        <div class="col-12 col-lg-7">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Resultados</h3>
+            </div>
+
+            <div class="card-body">
+
+              {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+              {% endif %}
+
+              {% if run %}
+                <div class="alert alert-info">
+                  Run #{{ run.id }} |
+                  Provider: <strong>{{ run.provider_used }}</strong> |
+                  Cache: <strong>{{ run.from_cache }}</strong> |
+                  Nuevo hoy: <strong>{{ run.is_new_seed }}</strong>
+                  {% if run.error %}
+                    <br><small class="text-secondary">{{ run.error }}</small>
+                  {% endif %}
+                </div>
+
+                {% if ideas %}
+                  <div class="table-responsive">
+                    <table class="table table-vcenter table-striped">
+                      <thead>
+                        <tr>
+                          <th style="width:60px;">#</th>
+                          <th>Keyword</th>
+                          <th class="text-end">Search volume</th>
+                          <th class="text-end">Competition</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for idea in ideas %}
+                          <tr>
+                            <td class="text-secondary">{{ forloop.counter }}</td>
+                            <td class="fw-medium">{{ idea.keyword }}</td>
+                            <td class="text-end">{{ idea.search_volume }}</td>
+                            <td class="text-end">{% if idea.competition_index is not None %}{{ idea.competition_index }}{% else %}—{% endif %}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% else %}
+                  <div class="text-secondary">
+                    No hay ideas nuevas para mostrar.
+                    <br>
+                    <small>
+                      Si el seed es muy nicho, a veces Google Ads/DataForSEO devuelve 0 ideas.
+                      Puedes intentar un término más general o marcar el fallback (costo extra).
+                    </small>
+                  </div>
+                {% endif %}
+
+              {% else %}
+                <div class="text-secondary">
+                  Ingresa un seed y presiona “Buscar”.
+                </div>
+              {% endif %}
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
