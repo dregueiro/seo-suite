@@ -31,3 +31,7 @@ Thumbs.db
 # Secrets
 .env
 .env.*
+
+seosuite1.zip
+*.zip
+
