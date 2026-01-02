@@ -1,0 +1,48 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}SEO Suite{% endblock %}
+{% block page_title %}SEO Suite{% endblock %}
+
+{% block content %}
+  <div class="row row-deck row-cards">
+    <div class="col-md-6 col-lg-3">
+      <a class="card card-link" href="/keywords/">
+        <div class="card-body">
+          <div class="text-muted">Manage</div>
+          <div class="h3">Keywords</div>
+          <div class="text-muted">Add, filter, import, and run</div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <a class="card card-link" href="/serp/runs/">
+        <div class="card-body">
+          <div class="text-muted">History</div>
+          <div class="h3">SERP Runs</div>
+          <div class="text-muted">Runs, status, totals</div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <a class="card card-link" href="/rankings/">
+        <div class="card-body">
+          <div class="text-muted">Track</div>
+          <div class="h3">Rankings</div>
+          <div class="text-muted">Movement and volatility</div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-md-6 col-lg-3">
+      <a class="card card-link" href="/admin/">
+        <div class="card-body">
+          <div class="text-muted">Admin</div>
+          <div class="h3">Django Admin</div>
+          <div class="text-muted">Models, seed, config</div>
+        </div>
+      </a>
+    </div>
+  </div>
+{% endblock %}

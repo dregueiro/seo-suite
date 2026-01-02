@@ -1,0 +1,137 @@
+{% extends "layouts/base.html" %}
+
+{% block title %}Rankings{% endblock %}
+{% block page_title %}Rankings{% endblock %}
+
+{% block content %}
+  <div class="card mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Project</label>
+          <select name="project" class="form-select">
+            <option value="">Select</option>
+            {% for p in projects %}
+              <option value="{{ p.id }}" {% if project_id|slugify == p.id|slugify %}selected{% endif %}>
+                {{ p.client.name }} | {{ p.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label">Search keyword</label>
+          <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="contains..." />
+        </div>
+
+        <div class="col-md-2 d-flex align-items-end">
+          <button class="btn btn-primary w-100" type="submit">Load</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if latest_run %}
+    <div class="text-muted mb-3">
+      Latest run: {{ latest_run.id }} at {{ latest_run.created_at|date:"Y-m-d H:i" }}.
+      {% if prev_run %}
+        Previous run: {{ prev_run.id }} at {{ prev_run.created_at|date:"Y-m-d H:i" }}.
+      {% else %}
+        No previous run found to compare.
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="table-responsive">
+        <table class="table table-vcenter card-table">
+          <thead>
+            <tr>
+              <th>Keyword</th>
+              <th>Current</th>
+              <th>Previous</th>
+              <th>Movement</th>
+              <th>SERP Top1</th>
+              <th>Top1 Domain</th>
+              <th>Top1 URL</th>
+              <th>Top3</th>
+              <th>Top3 score</th>
+              <th>Top3 domains</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+              <tr>
+                <td class="fw-semibold">{{ r.keyword }}</td>
+                <td>{% if r.current %}{{ r.current }}{% else %}-{% endif %}</td>
+                <td>{% if r.previous %}{{ r.previous }}{% else %}-{% endif %}</td>
+                <td>{{ r.movement }}</td>
+
+                <td>
+                  {% if r.serp_top1 == "Changed" %}
+                    <span class="badge bg-orange text-white">Changed</span>
+                  {% elif r.serp_top1 == "Same" %}
+                    <span class="badge bg-azure text-white">Same</span>
+                  {% else %}
+                    <span class="badge">-</span>
+                  {% endif %}
+                </td>
+
+                <td>
+                  <div class="text-muted">{% if r.prev_top_domain %}{{ r.prev_top_domain }}{% else %}-{% endif %}</div>
+                  <div>{% if r.cur_top_domain %}{{ r.cur_top_domain }}{% else %}-{% endif %}</div>
+                </td>
+
+                <td style="max-width: 420px; word-break: break-word;">
+                  {% if r.prev_top_url %}<div class="text-muted">{{ r.prev_top_url }}</div>{% else %}<div class="text-muted">-</div>{% endif %}
+                  {% if r.cur_top_url %}<div>{{ r.cur_top_url }}</div>{% else %}<div>-</div>{% endif %}
+                </td>
+
+                <td>
+                  {% if r.top3_volatility == "Changed" %}
+                    <span class="badge bg-orange text-white">Changed</span>
+                  {% elif r.top3_volatility == "Same" %}
+                    <span class="badge bg-azure text-white">Same</span>
+                  {% else %}
+                    <span class="badge">-</span>
+                  {% endif %}
+                </td>
+
+                <td>
+                  {% if r.top3_score is not None %}
+                    <span class="badge bg-indigo text-white">{{ r.top3_score }}/3</span>
+                  {% else %}
+                    <span class="badge">-</span>
+                  {% endif %}
+                </td>
+
+                <td style="min-width: 260px;">
+                  <div class="text-muted">
+                    {% for d in r.prev_top3_domains %}
+                      <span class="badge bg-light text-dark me-1 mb-1">{{ d }}</span>
+                    {% empty %}
+                      <span class="text-muted">-</span>
+                    {% endfor %}
+                  </div>
+                  <div>
+                    {% for d in r.cur_top3_domains %}
+                      <span class="badge bg-light text-dark me-1 mb-1">{{ d }}</span>
+                    {% empty %}
+                      <span class="text-muted">-</span>
+                    {% endfor %}
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="10" class="text-muted">No snapshots yet. Run SerpAPI at least once.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  {% else %}
+    <div class="alert alert-info" role="alert">
+      Select a project. You need at least one completed SERP run.
+    </div>
+  {% endif %}
+{% endblock %}
