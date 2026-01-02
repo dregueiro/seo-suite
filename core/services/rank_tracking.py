@@ -1,6 +1,18 @@
 from urllib.parse import urlparse
 
 from core.models import SerpRun, SerpResult, SerpKeywordSnapshot
+from core.services.serpapi_provider import SerpApiProvider
+from core.services.dataforseo_provider import DataForSEOProvider
+
+PROVIDERS = {
+    "serpapi": SerpApiProvider,
+    "dataforseo": DataForSEOProvider,
+}
+
+def get_provider(name: str):
+    name = (name or "serpapi").lower().strip()
+    cls = PROVIDERS.get(name, SerpApiProvider)
+    return cls()
 
 
 def normalize_domain(domain_or_url: str) -> str:

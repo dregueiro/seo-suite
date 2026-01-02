@@ -62,6 +62,12 @@ class SerpRun(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    provider = models.CharField(max_length=30, default="serpapi")
+    status = models.CharField(max_length=30, default="created")
+    task_id = models.CharField(max_length=120, blank=True, default="")
+    raw = models.JSONField(default=dict, blank=True)
+    error = models.TextField(blank=True, default="")
+
     class Meta:
         indexes = [
             models.Index(fields=["project", "created_at"]),

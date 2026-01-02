@@ -10,6 +10,119 @@ from core.services.serpapi_provider import SerpApiProvider
 from core.services.rank_tracking import build_snapshots_for_run
 
 
+from core.models import SerpRun, SerpResult, SerpFeature
+from core.services.rank_tracking import get_provider
+
+
+class Command(BaseCommand):
+    def add_arguments(self, parser):
+        parser.add_argument("--submit", action="store_true")
+        parser.add_argument("--poll", action="store_true")
+        parser.add_argument("--limit", type=int, default=50)
+
+    def handle(self, *args, **options):
+        submit = options["submit"]
+        poll = options["poll"]
+        limit = options["limit"]
+
+        if not submit and not poll:
+            submit = True
+            poll = True
+
+        if submit:
+            self._submit(limit)
+
+        if poll:
+            self._poll(limit)
+
+    def _submit(self, limit: int):
+        runs = SerpRun.objects.filter(status="created").order_by("id")[:limit]
+        for run in runs:
+            try:
+                provider = get_provider(run.provider)
+
+                if run.provider == "dataforseo":
+                    project = run.keyword.project
+                    language_code = getattr(project, "language_code", "en")
+
+                    location_code = getattr(run.keyword, "location_code", None)
+                    if not location_code:
+                        location_code = getattr(project, "location_code", None)
+                    if not location_code:
+                        location_code = 2840  # US default, luego lo hacemos bien con seed_geo
+
+                    device = getattr(run.keyword, "device", "") or getattr(project, "default_device", "mobile")
+
+                    task_id = provider.submit_task(
+                        keyword=run.keyword.keyword,
+                        language_code=language_code,
+                        location_code=int(location_code),
+                        device=device,
+                        depth=10,
+                    )
+                    run.task_id = task_id
+                    run.status = "submitted"
+                    run.save(update_fields=["task_id", "status"])
+                else:
+                    data = provider.fetch_serp(run)  # tu serpapi_provider ya lo tendrá, si no, lo adaptamos
+                    self._save_results(run, data)
+                    run.status = "done"
+                    run.completed_at = timezone.now()
+                    run.save(update_fields=["status", "completed_at"])
+
+            except Exception as e:
+                run.status = "error"
+                run.error = str(e)
+                run.save(update_fields=["status", "error"])
+
+    def _poll(self, limit: int):
+        runs = SerpRun.objects.filter(provider="dataforseo", status="submitted").exclude(task_id="").order_by("id")[:limit]
+        for run in runs:
+            try:
+                provider = get_provider("dataforseo")
+                resp = provider.poll_task(run.task_id)
+                run.raw = resp
+                run.save(update_fields=["raw"])
+
+                if not provider.is_ready(resp):
+                    continue
+
+                parsed = provider.parse_top10(resp)
+                self._save_results_from_parsed(run, parsed)
+
+                run.status = "done"
+                run.completed_at = timezone.now()
+                run.save(update_fields=["status", "completed_at"])
+
+            except Exception as e:
+                run.status = "error"
+                run.error = str(e)
+                run.save(update_fields=["status", "error"])
+
+    def _save_results_from_parsed(self, run, parsed):
+        SerpResult.objects.filter(serp_run=run).delete()
+        SerpFeature.objects.filter(serp_run=run).delete()
+
+        for r in parsed.results:
+            SerpResult.objects.create(
+                serp_run=run,
+                position=r["position"],
+                title=r["title"],
+                url=r["url"],
+                domain=r["domain"],
+                snippet=r["snippet"],
+                extra_json=r["raw"],
+            )
+
+        for f in parsed.features:
+            SerpFeature.objects.create(
+                serp_run=run,
+                feature_type=f["type"],
+                payload_json=f["raw"],
+            )
+
+
+
 def _stable_int(s: str) -> int:
     h = hashlib.sha256(s.encode("utf-8")).hexdigest()
     return int(h[:8], 16)
