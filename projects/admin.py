@@ -1,22 +1,20 @@
 from django.contrib import admin
 
-from projects.models import Client, Project, Keyword, ProjectCompetitor
-
-
-@admin.register(Client)
-class ClientAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "created_at")
-    search_fields = ("name",)
-    ordering = ("name",)
+from projects.models import Project, Keyword, ProjectCompetitor
+from clients.models import Client
 
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "domain", "client", "is_active", "created_at")
+    list_display = ("id", "name", "domain", "is_active", "created_at")
     list_filter = ("is_active", "device", "country", "language")
     search_fields = ("name", "domain")
     ordering = ("-created_at",)
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.primary_country_id:
+            ensure_country_cities_seeded(obj.primary_country.code)
 
 @admin.register(Keyword)
 class KeywordAdmin(admin.ModelAdmin):

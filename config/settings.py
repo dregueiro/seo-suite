@@ -44,11 +44,13 @@ INSTALLED_APPS = [
     "django_filters",
     "core",
     "geo",
+    "clients",
     "projects",
     "serp",
     "planner",
     "integrations",
     "jobs",
+
 ]
 
 MIDDLEWARE = [

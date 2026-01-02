@@ -3,23 +3,23 @@ from __future__ import annotations
 from django.db import models
 
 
-class Client(models.Model):
-    name = models.CharField(max_length=120, unique=True)
-    notes = models.TextField(blank=True, default="")
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["name"]
-
-    def __str__(self) -> str:
-        return self.name
+client = models.ForeignKey(
+    "clients.Client",
+    on_delete=models.PROTECT,
+    related_name="projects",
+)
 
 class Project(models.Model):
     class Device(models.TextChoices):
         DESKTOP = "desktop", "Desktop"
         MOBILE = "mobile", "Mobile"
 
-    client = models.ForeignKey("projects.Client", on_delete=models.PROTECT, related_name="projects")
+    client = models.ForeignKey(
+            "clients.Client",
+            on_delete=models.PROTECT,
+            related_name="projects",
+            editable=False,   # No aparece en admin/forms
+        )
     name = models.CharField(max_length=160)
     domain = models.CharField(max_length=255)  # ejemplo: voicesenglish.com
     is_active = models.BooleanField(default=True)
@@ -55,6 +55,14 @@ class Project(models.Model):
 
     def __str__(self) -> str:
         return f"{self.client.name} | {self.name}"
+
+    def save(self, *args, **kwargs):
+        if not self.client_id:
+            c = get_singleton_client()
+            if not c:
+                raise ValidationError("Debe existir un Cliente antes de crear Proyectos.")
+            self.client = c
+        super().save(*args, **kwargs)
 
 class Keyword(models.Model):
     class Status(models.TextChoices):
