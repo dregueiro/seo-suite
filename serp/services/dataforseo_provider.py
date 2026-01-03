@@ -1,16 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+
+from typing import Any, Iterable, List, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 from integrations.dataforseo.client import DataForSEOClient
-
-
-@dataclass
-class SerpParsed:
-    results: List[dict]
-    features: List[dict]
+from integrations.serp.types import SerpParsed, SerpResultItem, SerpFeatureItem
 
 
 class DataForSEOProvider:
@@ -62,15 +57,16 @@ class DataForSEOProvider:
 
         results = [
             {
-                "position": int(r.get("position") or 0) or 0,
-                "title": r.get("title") or "",
-                "url": r.get("url") or "",
-                "domain": r.get("domain") or "",
-                "snippet": r.get("snippet") or "",
-                "raw": r.get("raw"),
+                "position": int(r.position or 0),
+                "title": r.title or "",
+                "url": r.url or "",
+                "domain": r.domain or "",
+                "snippet": r.snippet or "",
+                "raw": r.raw,
             }
             for r in parsed.results
         ]
+
 
         return results, resp
 
@@ -200,22 +196,27 @@ class DataForSEOProvider:
 
             items = [
                 {
-                    "position": int(r.get("position") or 0) or 0,
-                    "title": r.get("title") or "",
-                    "url": r.get("url") or "",
-                    "domain": r.get("domain") or "",
-                    "snippet": r.get("snippet") or "",
-                    "raw": r.get("raw"),
+                    "position": int(r.position or 0),
+                    "title": r.title or "",
+                    "url": r.url or "",
+                    "domain": r.domain or "",
+                    "snippet": r.snippet or "",
+                    "raw": r.raw,
                 }
                 for r in parsed.results
             ]
+
 
             normalized_results.append(
                 {
                     "task_id": tid,
                     "keyword": kw,
                     "items": items,
-                    "features": parsed.features,
+                    "features": [
+                        {"type": f.name, "raw": f.raw}
+                        for f in parsed.features
+                    ],
+
                     "raw": raw,
                     "ready": True,
                 }
@@ -255,18 +256,18 @@ class DataForSEOProvider:
     def parse_top10(self, resp: dict) -> SerpParsed:
         """
         Parsea respuesta DataForSEO (live advanced o task_get).
-        Devuelve top 10 orgánicos + features básicas.
+        Devuelve top 10 orgánicos + features básicas en contrato interno.
         """
         tasks = resp.get("tasks") or []
         if not tasks:
-            return SerpParsed(results=[], features=[])
+            return SerpParsed(provider="dataforseo", results=[], features=[], raw=resp)
 
         task = tasks[0] or {}
         result0 = (task.get("result") or [None])[0] or {}
         items = result0.get("items") or []
 
-        results: List[dict] = []
-        features: List[dict] = []
+        results_items: List[SerpResultItem] = []
+        features_items: List[SerpFeatureItem] = []
 
         for item in items:
             t = item.get("type")
@@ -276,21 +277,40 @@ class DataForSEOProvider:
                 if not domain and url:
                     domain = self._safe_domain(url)
 
-                results.append(
-                    {
-                        "position": item.get("rank_group") or item.get("rank_absolute") or 0,
-                        "title": item.get("title") or "",
-                        "url": url,
-                        "domain": domain,
-                        "snippet": item.get("description") or "",
-                        "raw": item,
-                    }
-                )
-            elif t in {"people_also_ask", "local_pack", "featured_snippet", "sitelinks"}:
-                features.append({"type": t, "raw": item})
+                position = item.get("rank_group") or item.get("rank_absolute") or 0
 
-        results = sorted(results, key=lambda x: int(x.get("position") or 0))[:10]
-        return SerpParsed(results=results, features=features)
+                results_items.append(
+                    SerpResultItem(
+                        position=int(position or 0),
+                        title=item.get("title") or "",
+                        url=url,
+                        domain=domain,
+                        snippet=item.get("description") or "",
+                        displayed_url=item.get("breadcrumb") or "",
+                        raw=item if isinstance(item, dict) else {},
+                    )
+                )
+
+            elif t in {"people_also_ask", "local_pack", "featured_snippet", "sitelinks"}:
+                features_items.append(
+                    SerpFeatureItem(
+                        name=str(t),
+                        position=0,
+                        url=(item.get("url") or "") if isinstance(item, dict) else "",
+                        raw=item if isinstance(item, dict) else {},
+                    )
+                )
+
+        results_items = sorted(results_items, key=lambda x: int(x.position or 0))[:10]
+
+        # AQUI VA EL RETURN QUE PREGUNTASTE
+        return SerpParsed(
+            provider="dataforseo",
+            results=results_items,
+            features=features_items,
+            raw=resp,
+    )
+
 
     # -------------------------
     # Internal utilities

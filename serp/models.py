@@ -21,6 +21,13 @@ class SerpRun(models.Model):
 
     provider = models.CharField(max_length=30, default="serpapi")
     status = models.CharField(max_length=30, default=Status.CREATED)
+    run_type = models.CharField(max_length=40, blank=True, default="rank_tracking")
+
+    cache_key = models.CharField(max_length=120, blank=True, default="", db_index=True)
+    cache_expires_at = models.DateTimeField(null=True, blank=True)
+
+    response_status = models.PositiveIntegerField(default=0)
+    cost_units = models.PositiveIntegerField(default=0)
 
     country = models.ForeignKey("geo.Country", on_delete=models.SET_NULL, null=True, blank=True)
     language = models.ForeignKey("geo.Language", on_delete=models.SET_NULL, null=True, blank=True)
@@ -45,6 +52,9 @@ class SerpRun(models.Model):
         indexes = [
             models.Index(fields=["project", "created_at"]),
             models.Index(fields=["status", "created_at"]),
+            models.Index(fields=["cache_key", "cache_expires_at"]),
+            models.Index(fields=["provider", "status", "created_at"]),
+
         ]
         ordering = ["-created_at"]
 
