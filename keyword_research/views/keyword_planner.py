@@ -3,9 +3,9 @@ from __future__ import annotations
 from django.shortcuts import get_object_or_404, render
 from django.views.decorators.http import require_http_methods
 
-from planner.forms import KeywordPlannerForm
+from keyword_research.forms import KeywordPlannerForm
 from projects.models import Project
-from planner.services.keyword_ideas_service import KeywordIdeasService
+from keyword_research.services.keyword_ideas_service import KeywordIdeasService
 
 
 @require_http_methods(["GET", "POST"])

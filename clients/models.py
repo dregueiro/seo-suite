@@ -22,10 +22,6 @@ class Client(models.Model):
         validators=[phone_validator],
     )
 
-    # Integrations
-    gsc_website_link = models.URLField(max_length=2048, blank=True, default="")
-    google_analytics_id = models.CharField(max_length=128, blank=True, default="")
-    gads_login_customer_id = models.CharField(max_length=32, blank=True, default="")
 
     # Geo (todo viene de la app geo)
     country = models.ForeignKey("geo.Country", null=True, blank=True, on_delete=models.SET_NULL)

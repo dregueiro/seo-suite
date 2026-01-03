@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from planner.models import KeywordIdeaRun, KeywordIdea
+from keyword_research.models import KeywordIdeaRun, KeywordIdea
 
 
 @admin.register(KeywordIdeaRun)

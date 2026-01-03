@@ -6,5 +6,5 @@ urlpatterns = [
     path("", include("core.urls")),
     path("", include("projects.urls")),
     path("", include("serp.urls")),
-    path("", include("planner.urls")),
+    path("", include("keyword_research.urls")),
 ]

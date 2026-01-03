@@ -3,10 +3,10 @@ from __future__ import annotations
 from django.db import transaction
 from django.utils import timezone
 
-from planner.models import KeywordIdea, KeywordIdeaRun
-from planner.services.google_ads_keyword_planner_provider import GoogleAdsKeywordPlannerProvider
-from planner.services.keyword_planner_provider import DataForSEOKeywordPlannerProvider
-from planner.services.dataforseo_labs_provider import DataForSEOLabsProvider
+from keyword_research.models import KeywordIdea, KeywordIdeaRun
+from keyword_research.services.google_ads_keyword_planner_provider import GoogleAdsKeywordPlannerProvider
+from keyword_research.services.keyword_planner_provider import DataForSEOKeywordPlannerProvider
+from keyword_research.services.dataforseo_labs_provider import DataForSEOLabsProvider
 
 
 def _today_range():

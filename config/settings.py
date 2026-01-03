@@ -47,7 +47,7 @@ INSTALLED_APPS = [
     "clients",
     "projects",
     "serp",
-    "planner",
+    "keyword_research",
     "integrations",
     "jobs",
 

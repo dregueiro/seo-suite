@@ -1,2 +1,2 @@
 from projects.forms import KeywordImportForm
-from planner.forms import KeywordPlannerForm
+from keyword_research.forms import KeywordPlannerForm
