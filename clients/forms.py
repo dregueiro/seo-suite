@@ -1,9 +1,7 @@
-# clients/forms.py
 from django import forms
-from django.urls import reverse
 
 from .models import Client
-from geo.models import Region, City
+from geo.models import Region, City  # asumiendo que existen en geo
 
 
 class ClientAdminForm(forms.ModelForm):
@@ -14,18 +12,30 @@ class ClientAdminForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # OJO: estos deben coincidir con get_urls() en admin.py
-        self.fields["region"].widget.attrs["data-ajax-url"] = reverse("admin:clients_client_ajax_regions")
-        self.fields["city"].widget.attrs["data-ajax-url"] = reverse("admin:clients_client_ajax_cities")
+        # Defaults seguros: no romper admin si no hay país/región seleccionados aún
+        self.fields["region"].queryset = Region.objects.all()
+        self.fields["city"].queryset = City.objects.all()
 
-        self.fields["region"].queryset = Region.objects.none()
-        self.fields["city"].queryset = City.objects.none()
+        # Si viene POST/GET (cuando el usuario cambia selects), respeta eso
+        country_id = self.data.get("country") or None
+        region_id = self.data.get("region") or None
 
-        country_id = self.data.get("country") or getattr(self.instance, "country_id", None)
-        region_id = self.data.get("region") or getattr(self.instance, "region_id", None)
+        # Si estamos editando un objeto existente y no hay data, usar la instancia
+        if self.instance and self.instance.pk and not self.data:
+            country_id = self.instance.country_id
+            region_id = self.instance.region_id
 
+        # Filtrado por country para region (sin perder el valor guardado)
         if country_id:
-            self.fields["region"].queryset = Region.objects.filter(country_id=country_id).order_by("name")
+            qs = Region.objects.filter(country_id=country_id)
+            # incluir la región actual aunque no calce (por seguridad)
+            if self.instance and self.instance.region_id:
+                qs = qs | Region.objects.filter(pk=self.instance.region_id)
+            self.fields["region"].queryset = qs.distinct()
 
+        # Filtrado por region para city (sin perder el valor guardado)
         if region_id:
-            self.fields["city"].queryset = City.objects.filter(region_id=region_id).order_by("name")
+            qs = City.objects.filter(region_id=region_id)
+            if self.instance and self.instance.city_id:
+                qs = qs | City.objects.filter(pk=self.instance.city_id)
+            self.fields["city"].queryset = qs.distinct()

@@ -12,6 +12,9 @@ from geo.models import Region, City
 class ClientAdmin(admin.ModelAdmin):
     form = ClientAdminForm
 
+    list_display = ("name", "country", "region", "city", "updated_at")
+    search_fields = ("name",)
+    readonly_fields = ("created_at", "updated_at")
     class Media:
         js = ("clients/admin/client_chained_geo.js",)
 

@@ -1,8 +1,26 @@
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
+
+
+phone_validator = RegexValidator(
+    regex=r"^\+?[0-9\s().-]{7,20}$",
+    message="Teléfono inválido. Usa solo números y caracteres + ( ) . - y espacios.",
+)
+
 
 class Client(models.Model):
     name = models.CharField(max_length=255, unique=True)
+
+    # Contact
+    contact_name = models.CharField(max_length=255, blank=True, default="")
+    contact_email = models.EmailField(max_length=254, blank=True, default="")
+    contact_phone = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        validators=[phone_validator],
+    )
 
     # Integrations
     gsc_website_link = models.URLField(max_length=2048, blank=True, default="")
