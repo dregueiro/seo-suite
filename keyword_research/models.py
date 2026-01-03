@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.db import models
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 
 class Keyword(models.Model):
@@ -134,6 +135,23 @@ class KeywordIdeaRun(models.Model):
             models.Index(fields=["cache_key", "cache_expires_at"]),
             models.Index(fields=["status", "requested_at"]),
         ]
+    def clean(self):
+        super().clean()
+        if self.seed_ref:
+            ref_seed = (self.seed_ref.seed or "").strip().lower()
+            run_seed = (self.seed_keyword or "").strip().lower()
+
+            if not run_seed:
+                # se completa en save(), pero clean no debería mutar; ok dejar pasar
+                return
+
+            if ref_seed and run_seed and ref_seed != run_seed:
+                raise ValidationError({"seed_keyword": "seed_keyword debe coincidir con seed_ref.seed."})
+
+    def save(self, *args, **kwargs):
+        if self.seed_ref and not (self.seed_keyword or "").strip():
+            self.seed_keyword = (self.seed_ref.seed or "").strip().lower()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"KeywordIdeaRun({self.project_id}, {self.seed_keyword}, {self.provider})"

@@ -31,3 +31,19 @@ def keyword_metrics_cache_key(
         f"|loc={int(location_code)}|lang={(language_code or '').strip().lower()}"
     )
     return f"kw_metrics:{provider}:{_sha32(base)}"
+
+def gsc_cache_key(
+    *,
+    project_id: int,
+    site_url: str,
+    date: str,
+    dimensions: list[str] | tuple[str, ...],
+    filters: dict | None = None,
+) -> str:
+    dims = ",".join([d.strip().lower() for d in (dimensions or [])])
+    filt = (filters or {})
+    base = (
+        f"gsc|p={project_id}|site={(site_url or '').strip().lower()}"
+        f"|date={date}|dims={dims}|filters={str(sorted(filt.items()))}"
+    )
+    return f"gsc:{_sha32(base)}"

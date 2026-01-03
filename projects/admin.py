@@ -9,6 +9,21 @@ from clients.models import Client
 from geo.models import Region, City
 from projects.forms import ProjectAdminForm
 from projects.models import Project, ProjectCompetitor
+from projects.models import Project, ProjectCompetitor, GscRow, GscSyncRun
+
+@admin.register(GscSyncRun)
+class GscSyncRunAdmin(admin.ModelAdmin):
+    list_display = ("id","project","date","status","rows_fetched","rows_upserted","requested_at","completed_at","response_status")
+    list_filter = ("status","date")
+    search_fields = ("project__domain","site_url")
+    readonly_fields = ("raw_json","error","cache_key","cache_expires_at")
+
+@admin.register(GscRow)
+class GscRowAdmin(admin.ModelAdmin):
+    list_display = ("id","project","date","query","country","device","clicks","impressions","ctr","position")
+    list_filter = ("date","country","device")
+    search_fields = ("query","page","project__domain")
+    readonly_fields = ("raw_json",)
 
 
 @admin.register(Project)
