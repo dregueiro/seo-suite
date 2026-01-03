@@ -7,6 +7,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("projects", "0002_remove_project_google_ads_customer_id_and_more"),
         ("planner", "0002_keyword_state"),
+        ("serp", "0003_keyword_fk_to_planner_state_only"),
     ]
 
     operations = [
