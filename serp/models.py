@@ -68,7 +68,7 @@ class SerpResult(models.Model):
         FEATURE = "feature", "Feature"
 
     serp_run = models.ForeignKey("serp.SerpRun", on_delete=models.CASCADE, related_name="results")
-    keyword = models.ForeignKey("projects.Keyword", on_delete=models.CASCADE, related_name="serp_results")
+    keyword = models.ForeignKey("planner.Keyword", on_delete=models.CASCADE, related_name="serp_results")
 
     position = models.PositiveIntegerField()
     result_type = models.CharField(max_length=10, choices=ResultType.choices, default=ResultType.ORGANIC)
@@ -100,7 +100,7 @@ class SerpResult(models.Model):
 
 class SerpKeywordSnapshot(models.Model):
     serp_run = models.ForeignKey("serp.SerpRun", on_delete=models.CASCADE, related_name="snapshots")
-    keyword = models.ForeignKey("projects.Keyword", on_delete=models.CASCADE, related_name="snapshots")
+    keyword = models.ForeignKey("planner.Keyword", on_delete=models.CASCADE, related_name="snapshots")
 
     tracked_domain = models.CharField(max_length=255)  # dominio del proyecto normalizado
     tracked_position = models.PositiveIntegerField(null=True, blank=True)  # la mejor posición de tu dominio o None

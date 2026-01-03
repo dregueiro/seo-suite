@@ -4,6 +4,47 @@ from django.db import models
 from django.utils import timezone
 
 
+class Keyword(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        PAUSED = "paused", "Paused"
+
+    project = models.ForeignKey("projects.Project", on_delete=models.CASCADE, related_name="keywords")
+    keyword = models.CharField(max_length=255)
+    country = models.ForeignKey("geo.Country", on_delete=models.SET_NULL, null=True, blank=True)
+    language = models.ForeignKey("geo.Language", on_delete=models.SET_NULL, null=True, blank=True)
+
+    city = models.CharField(max_length=120, blank=True, default="")
+    device = models.CharField(max_length=10, blank=True, default="")
+
+    target_url = models.URLField(blank=True, default="")
+    intent = models.CharField(max_length=40, blank=True, default="")
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.ACTIVE)
+
+    priority = models.PositiveSmallIntegerField(default=3, help_text="1=low cost, 5=high priority")
+    notes = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        # Clave: conservar la tabla existente creada por projects.Keyword
+        db_table = "projects_keyword"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["project", "keyword", "country", "city", "language", "device"],
+                name="uniq_keyword_scope",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["project", "status"]),
+            models.Index(fields=["keyword"]),
+        ]
+        ordering = ["project__client__name", "project__name", "keyword"]
+
+    def __str__(self) -> str:
+        return f"{self.project.name} | {self.keyword}"
+
+
 class KeywordIdeaRun(models.Model):
     class Provider(models.TextChoices):
         GOOGLE_ADS = "google_ads", "Google Ads"

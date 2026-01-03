@@ -4,13 +4,11 @@ import io
 from django.contrib import messages
 from django.db import IntegrityError, transaction
 from django.shortcuts import render, redirect
-
+from keyword_research.models import Keyword
 from projects.forms import KeywordImportForm
-from projects.models import Keyword
 from django.core.paginator import Paginator
 from django.db.models import Q
-
-from projects.models import Project, Keyword
+from projects.models import Project
 from geo.models import Country, Language
 
 def _normalize_kw(s: str) -> str:

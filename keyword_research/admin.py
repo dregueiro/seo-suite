@@ -1,6 +1,15 @@
 from django.contrib import admin
 
-from keyword_research.models import KeywordIdeaRun, KeywordIdea
+from keyword_research.models import KeywordIdeaRun, KeywordIdea,Keyword
+from django.contrib import admin
+
+
+@admin.register(Keyword)
+class KeywordAdmin(admin.ModelAdmin):
+    list_display = ("id", "project", "keyword", "status", "priority", "created_at")
+    list_filter = ("status", "priority")
+    search_fields = ("keyword", "project__domain")
+    ordering = ("-created_at",)
 
 
 @admin.register(KeywordIdeaRun)

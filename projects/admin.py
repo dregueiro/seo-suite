@@ -8,7 +8,7 @@ from django.utils.html import format_html
 from clients.models import Client
 from geo.models import Region, City
 from projects.forms import ProjectAdminForm
-from projects.models import Project, Keyword, ProjectCompetitor
+from projects.models import Project, ProjectCompetitor
 
 
 @admin.register(Project)
@@ -104,14 +104,6 @@ class ProjectAdmin(admin.ModelAdmin):
             return JsonResponse({"country": None, "region": None, "city": None}, safe=False)
 
         return JsonResponse({"country": c.country_id, "region": c.region_id, "city": c.city_id}, safe=False)
-
-
-@admin.register(Keyword)
-class KeywordAdmin(admin.ModelAdmin):
-    list_display = ("id", "project", "keyword", "status", "priority", "created_at")
-    list_filter = ("status", "priority")
-    search_fields = ("keyword",)
-    ordering = ("-created_at",)
 
 
 @admin.register(ProjectCompetitor)
