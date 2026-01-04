@@ -27,6 +27,20 @@
       <div>Ads customer id: <code>{{ project.ads_customer_id|default:"(vacío)" }}</code></div>
       <div>Locale: <code>{{ project.country_code }}-{{ project.language_code }}</code></div>
       <p>
+        Mock Ads:
+        {% if mock_ads_enabled %}
+          <strong>ON</strong>
+        {% else %}
+          <strong>OFF</strong>
+        {% endif %}
+        {% if not mock_ads_enabled %}
+          <p style="font-size: 0.9em;">
+            Para activar el mock en local: agrega <code>SEOSUITE_ALLOW_MOCK_ADS=1</code> en tu <code>.env</code> y reinicia el servidor.
+          </p>
+        {% endif %}
+      </p>
+
+      <p>
         Admin:
         <a href="/admin/projects/project/{{ project.id }}/change/">Editar Project</a> |
         <a href="/admin/core/run/">Ver Runs</a> |

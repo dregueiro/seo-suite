@@ -2,7 +2,21 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
-from core.models import Run, RunArtifact
+from core.models import Run, RunArtifact, ProviderResponse
+
+
+@admin.register(ProviderResponse)
+class ProviderResponseAdmin(admin.ModelAdmin):
+    list_display = ("id", "run", "provider", "endpoint", "http_status", "received_at")
+    search_fields = ("provider", "endpoint", "run__id")
+    readonly_fields = ("received_at",)
+
+
+class ProviderResponseInline(admin.TabularInline):
+    model = ProviderResponse
+    extra = 0
+    fields = ("provider", "endpoint", "http_status", "received_at")
+    readonly_fields = ("provider", "endpoint", "http_status", "received_at")
 
 
 @admin.register(RunArtifact)
@@ -28,10 +42,7 @@ class RunArtifactInline(admin.TabularInline):
         return format_html('<a href="{}">Download</a>', url)
 
 
-# IMPORTANTE:
-# Si ya tienes RunAdmin registrado en otro sitio, NO lo vuelvas a registrar aquí.
-# Solo añade el inline al RunAdmin existente.
 @admin.register(Run)
 class RunAdmin(admin.ModelAdmin):
     list_display = ("id", "provider", "kind", "status", "cost_micros", "created_at", "finished_at")
-    inlines = [RunArtifactInline]
+    inlines = [ProviderResponseInline, RunArtifactInline]

@@ -1,130 +1,115 @@
-<!doctype html>
-{% load static %}
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Keyword Overview - {{ project.name }}</title>
-    <style>
-      body { font-family: system-ui, Arial; margin: 24px; }
-      .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-      .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
-      .pill { padding: 4px 10px; border-radius: 999px; border: 1px solid #ccc; display: inline-block; }
-      .ok { border-color: #2d8a34; }
-      .fail { border-color: #b42318; }
-      .unk { border-color: #888; }
-      table { border-collapse: collapse; width: 100%; }
-      th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; }
-      code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
-      .msg { padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #ddd; }
-    </style>
-  </head>
-  <body>
-    <h1>Keyword Overview: {{ project.client.name }} / {{ project.name }}</h1>
+{% extends "layouts/base.html" %}
+{% block title %}Keyword Overview - {{ project.name }}{% endblock %}
 
-    {% if messages %}
-      {% for m in messages %}
-        <div class="msg">{{ m }}</div>
-      {% endfor %}
-    {% endif %}
+{% block content %}
+  <h1>Keyword Overview: {{ project.client.name }} / {{ project.name }}</h1>
 
-    <div class="card">
-      <h2>Buscar keyword</h2>
-      <form method="post" action="/kw/projects/{{ project.id }}/overview/mock/">
+  <div class="card">
+    <h2>Buscar keyword</h2>
+
+    <!-- ADS REAL -->
+    <form method="post" action="/kw/projects/{{ project.id }}/overview/fetch/">
+      {% csrf_token %}
+      <input name="keyword" value="{{ keyword }}" placeholder="Ej: zapatos mujer" />
+      <button type="submit">Fetch (Ads)</button>
+
+      <a href="/seo/projects/{{ project.id }}/keywords/magic/">Keyword Magic</a> |
+      <a href="/seo/projects/{{ project.id }}/setup/">Setup</a>
+    </form>
+
+    {% if mock_ads_enabled %}
+      <form method="post" action="/kw/projects/{{ project.id }}/overview/fetch/" style="margin-top:10px;">
         {% csrf_token %}
-        <input name="keyword" value="{{ keyword }}" placeholder="Ej: zapatos mujer" />
-        <button type="submit">Fetch Mock</button>
-
-        <a href="/seo/projects/{{ project.id }}/keywords/magic/">Keyword Magic</a> |
-        <a href="/seo/projects/{{ project.id }}/setup/">Setup</a>
+        <input type="hidden" name="keyword" value="{{ keyword }}">
+        <button type="submit" formaction="/kw/projects/{{ project.id }}/overview/fetch/">Fetch (Mock)</button>
       </form>
-
       <p style="margin-top:8px;">
         <small>Modo DEV: Mock Keyword Planner (hasta que aprueben Ads Basic).</small>
       </p>
+    {% else %}
+      <p style="margin-top:8px;">
+        <small>Mock OFF. Para activar en local: <code>SEOSUITE_ALLOW_MOCK_ADS=1</code> en <code>.env</code> y reinicia.</small>
+      </p>
+    {% endif %}
+  </div>
 
-    </div>
-
-    <div class="card">
-      <h2>Run seleccionado</h2>
-      {% if selected_run %}
-        <div>
-          Run: <code>{{ selected_run.id }}</code>
-          {% if selected_run.status == "success" %}
-            <span class="pill ok">SUCCESS</span>
-          {% elif selected_run.status == "failed" %}
-            <span class="pill fail">FAILED</span>
-          {% else %}
-            <span class="pill unk">{{ selected_run.status }}</span>
-          {% endif %}
-        </div>
-        <div style="margin-top:8px;">
-          Kind: <code>{{ selected_run.kind }}</code>, Provider: <code>{{ selected_run.provider }}</code>
-        </div>
-        <div style="margin-top:8px;">
-          <a href="/admin/core/run/{{ selected_run.id }}/change/">Abrir en admin</a>
-        </div>
-        {% if selected_run.error_message %}
-          <div style="margin-top:8px;">Error: <code>{{ selected_run.error_message }}</code></div>
+  <div class="card">
+    <h2>Run seleccionado</h2>
+    {% if selected_run %}
+      <div>
+        Run: <code>{{ selected_run.id }}</code>
+        {% if selected_run.status == "success" %}
+          <span class="pill ok">SUCCESS</span>
+        {% elif selected_run.status == "failed" %}
+          <span class="pill fail">FAILED</span>
+        {% else %}
+          <span class="pill unk">{{ selected_run.status }}</span>
         {% endif %}
-      {% else %}
-        <div>No hay run seleccionado. Escribe una keyword y pulsa Fetch.</div>
+      </div>
+      <div style="margin-top:8px;">
+        Kind: <code>{{ selected_run.kind }}</code>, Provider: <code>{{ selected_run.provider }}</code>
+      </div>
+      <div style="margin-top:8px;">
+        <a href="/admin/core/run/{{ selected_run.id }}/change/">Abrir en admin</a>
+      </div>
+      {% if selected_run.error_message %}
+        <div style="margin-top:8px;">Error: <code>{{ selected_run.error_message }}</code></div>
       {% endif %}
-      {% if selected_run and selected_run.status == "success" %}
-        <p>
-          <a href="/seo/projects/{{ project.id }}/keywords/overview/export.pdf?run_id={{ selected_run.id }}">Export PDF</a>
-        </p>
-         <p>
-          <a href="/seo/projects/{{ project.id }}/keywords/overview/export.cvs?run_id={{ selected_run.id }}">Export CVS</a>
-        </p>
-      {% endif %}
+    {% else %}
+      <div>No hay run seleccionado. Escribe una keyword y pulsa Fetch.</div>
+    {% endif %}
 
-    </div>
+    {% if selected_run and selected_run.status == "success" %}
+      <p>
+        <a href="/seo/projects/{{ project.id }}/keywords/overview/export.csv?run_id={{ selected_run.id }}">Export CSV</a>
+      </p>
+    {% endif %}
+  </div>
 
-    <div class="card">
-      <h2>Histórico de runs (máx 20)</h2>
-      {% if runs %}
-        <ul>
-          {% for r in runs %}
-            <li>
-              <a href="/seo/projects/{{ project.id }}/keywords/overview/?q={{ keyword }}&run_id={{ r.id }}">{{ r.created_at }} — {{ r.status }} — {{ r.id }}</a>
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <div>Sin runs todavía (para la keyword actual).</div>
-      {% endif %}
-    </div>
+  <div class="card">
+    <h2>Histórico de runs (máx 20)</h2>
+    {% if runs %}
+      <ul>
+        {% for r in runs %}
+          <li>
+            <a href="/seo/projects/{{ project.id }}/keywords/overview/?q={{ keyword }}&run_id={{ r.id }}">{{ r.created_at }} — {{ r.status }} — {{ r.id }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div>Sin runs todavía (para la keyword actual).</div>
+    {% endif %}
+  </div>
 
-    <div class="card">
-      <h2>Métricas</h2>
-      {% if metrics %}
-        <table>
-          <thead>
+  <div class="card">
+    <h2>Métricas</h2>
+    {% if metrics %}
+      <table>
+        <thead>
+          <tr>
+            <th>Keyword</th>
+            <th>Avg monthly searches</th>
+            <th>CPC micros</th>
+            <th>Competition</th>
+            <th>Locale</th>
+            <th>Geo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in metrics %}
             <tr>
-              <th>Keyword</th>
-              <th>Avg monthly searches</th>
-              <th>CPC micros</th>
-              <th>Competition</th>
-              <th>Locale</th>
-              <th>Geo</th>
+              <td>{{ m.keyword }}</td>
+              <td>{{ m.avg_monthly_searches }}</td>
+              <td>{{ m.cpc_micros }}</td>
+              <td>{{ m.competition_level }}</td>
+              <td>{{ m.locale }}</td>
+              <td><code>{{ m.geo }}</code></td>
             </tr>
-          </thead>
-          <tbody>
-            {% for m in metrics %}
-              <tr>
-                <td>{{ m.keyword }}</td>
-                <td>{{ m.avg_monthly_searches }}</td>
-                <td>{{ m.cpc_micros }}</td>
-                <td>{{ m.competition_level }}</td>
-                <td>{{ m.locale }}</td>
-                <td><code>{{ m.geo }}</code></td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% else %}
-        <div>No hay métricas para mostrar.</div>
-      {% endif %}
-    </div>
-  </body>
-</html>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div>No hay métricas para mostrar.</div>
+    {% endif %}
+  </div>
+{% endblock %}

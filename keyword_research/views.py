@@ -223,3 +223,71 @@ def fetch_overview_ads(request, project_id: int):
 
     messages.error(request, f"FAIL: {run.error_message}")
     return redirect(f"/seo/projects/{project.id}/keywords/overview/?q={keyword}&run_id={run.id}")
+
+@require_POST
+def fetch_magic_ads(request, project_id: int):
+    """
+    STUB mientras Ads está PENDING (developer token no aprobado).
+    Crea un Run FAILED trazable y vuelve a la UI.
+    """
+    project = get_object_or_404(Project, id=project_id)
+
+    seed = (request.POST.get("seed") or "").strip()
+    if not seed:
+        messages.error(request, "Falta seed.")
+        return redirect(f"/seo/projects/{project.id}/keywords/magic/")
+
+    limit = int(request.POST.get("limit") or "50")
+
+    provider = Run.Provider.ADS if hasattr(Run, "Provider") else "ads"
+    kind = "keyword_research.ads.keyword_magic"
+
+    inputs = {"project_id": project.id, "seed": seed, "limit": limit}
+    input_hash = stable_hash(inputs)
+
+    # dedupe de FAIL no aplica, pero igual evitamos duplicar SUCCESS si existiera por accidente
+    existing = get_cached_success_run(
+        provider=provider,
+        kind=kind,
+        input_hash=input_hash,
+        max_age_days=30,
+    )
+    if existing:
+        messages.info(request, f"DEDUP: usando run existente {existing.id}")
+        return redirect(f"/seo/projects/{project.id}/keywords/magic/?q={seed}&run_id={existing.id}")
+
+    ct = ContentType.objects.get(app_label="projects", model="project")
+    run = Run.objects.create(
+        provider=provider,
+        kind=kind,
+        status="failed",
+        inputs=inputs,
+        input_hash=input_hash,
+        entity_content_type=ct,
+        entity_object_id=project.id,
+        started_at=timezone.now(),
+        finished_at=timezone.now(),
+        error_message="Google Ads API no disponible (PENDING).",
+        error_details=json.dumps(
+            {
+                "error": "DEVELOPER_TOKEN_NOT_APPROVED",
+                "hint": "Tu developer token está en modo test. Espera aprobación Basic/Standard.",
+            },
+            ensure_ascii=False,
+        )[:200000],
+    )
+
+    ProviderResponse.objects.create(
+        run=run,
+        provider=str(provider),
+        endpoint="google_ads.keyword_magic",
+        http_status=403,
+        request_body=json.dumps(inputs, ensure_ascii=False)[:200000],
+        response_body=json.dumps(
+            {"error": "DEVELOPER_TOKEN_NOT_APPROVED", "status": "PENDING"},
+            ensure_ascii=False
+        )[:200000],
+    )
+
+    messages.error(request, "Ads Magic: PENDING (token no aprobado). Usa Mock por ahora.")
+    return redirect(f"/seo/projects/{project.id}/keywords/magic/?q={seed}&run_id={run.id}")
