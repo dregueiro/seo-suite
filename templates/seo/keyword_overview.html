@@ -2,114 +2,226 @@
 {% block title %}Keyword Overview - {{ project.name }}{% endblock %}
 
 {% block content %}
-  <h1>Keyword Overview: {{ project.client.name }} / {{ project.name }}</h1>
-
-  <div class="card">
-    <h2>Buscar keyword</h2>
-
-    <!-- ADS REAL -->
-    <form method="post" action="/kw/projects/{{ project.id }}/overview/fetch/">
-      {% csrf_token %}
-      <input name="keyword" value="{{ keyword }}" placeholder="Ej: zapatos mujer" />
-      <button type="submit">Fetch (Ads)</button>
-
-      <a href="/seo/projects/{{ project.id }}/keywords/magic/">Keyword Magic</a> |
-      <a href="/seo/projects/{{ project.id }}/setup/">Setup</a>
-    </form>
-
-    {% if mock_ads_enabled %}
-      <form method="post" action="/kw/projects/{{ project.id }}/overview/fetch/" style="margin-top:10px;">
-        {% csrf_token %}
-        <input type="hidden" name="keyword" value="{{ keyword }}">
-        <button type="submit" formaction="/kw/projects/{{ project.id }}/overview/fetch/">Fetch (Mock)</button>
-      </form>
-      <p style="margin-top:8px;">
-        <small>Modo DEV: Mock Keyword Planner (hasta que aprueben Ads Basic).</small>
+  <div class="row">
+    <div class="col-12">
+      <h1 class="mb-3">Keyword Overview</h1>
+      <p class="text-muted mb-4">
+        Proyecto: <strong>{{ project.client.name }}</strong> / <strong>{{ project.name }}</strong>
       </p>
-    {% else %}
-      <p style="margin-top:8px;">
-        <small>Mock OFF. Para activar en local: <code>SEOSUITE_ALLOW_MOCK_ADS=1</code> en <code>.env</code> y reinicia.</small>
-      </p>
-    {% endif %}
+    </div>
   </div>
 
-  <div class="card">
-    <h2>Run seleccionado</h2>
-    {% if selected_run %}
-      <div>
-        Run: <code>{{ selected_run.id }}</code>
-        {% if selected_run.status == "success" %}
-          <span class="pill ok">SUCCESS</span>
-        {% elif selected_run.status == "failed" %}
-          <span class="pill fail">FAILED</span>
+  <!-- Buscar keyword -->
+  <div class="card card-primary card-outline">
+    <div class="card-header">
+      <h3 class="card-title">Buscar keyword</h3>
+    </div>
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        <div class="row g-2 align-items-center">
+          <div class="col-md-6">
+            <input class="form-control" name="keyword" value="{{ keyword }}" placeholder="Ej: zapatos mujer" />
+          </div>
+
+          <div class="col-md-auto">
+            <!-- Real Ads -->
+            <button
+              type="submit"
+              class="btn btn-primary"
+              formaction="/kw/projects/{{ project.id }}/overview/fetch/"
+            >
+              Fetch (Ads)
+            </button>
+          </div>
+
+          <div class="col-md-auto">
+            {% if mock_ads_enabled %}
+              <button
+                type="submit"
+                class="btn btn-outline-secondary"
+                formaction="/kw/projects/{{ project.id }}/overview/mock/"
+              >
+                Fetch (Mock)
+              </button>
+            {% else %}
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                disabled
+                title="Activa SEOSUITE_ALLOW_MOCK_ADS=1 en .env y reinicia"
+              >
+                Fetch (Mock)
+              </button>
+            {% endif %}
+          </div>
+
+          <div class="col-md-auto ms-md-auto d-flex gap-2">
+            <a class="btn btn-outline-dark" href="/seo/projects/{{ project.id }}/keywords/magic/">
+              Keyword Magic
+            </a>
+            <a class="btn btn-outline-dark" href="/seo/projects/{{ project.id }}/setup/">
+              Setup
+            </a>
+          </div>
+        </div>
+      </form>
+
+      <div class="mt-3">
+        {% if mock_ads_enabled %}
+          <small class="text-muted">
+            Mock ON (DEV): <code>SEOSUITE_ALLOW_MOCK_ADS=1</code>
+          </small>
         {% else %}
-          <span class="pill unk">{{ selected_run.status }}</span>
+          <small class="text-muted">
+            Mock OFF. Para activar en local: <code>SEOSUITE_ALLOW_MOCK_ADS=1</code> en <code>.env</code> y reinicia.
+          </small>
         {% endif %}
       </div>
-      <div style="margin-top:8px;">
-        Kind: <code>{{ selected_run.kind }}</code>, Provider: <code>{{ selected_run.provider }}</code>
-      </div>
-      <div style="margin-top:8px;">
-        <a href="/admin/core/run/{{ selected_run.id }}/change/">Abrir en admin</a>
-      </div>
-      {% if selected_run.error_message %}
-        <div style="margin-top:8px;">Error: <code>{{ selected_run.error_message }}</code></div>
+    </div>
+  </div>
+
+  <!-- Run seleccionado -->
+  <div class="card card-secondary card-outline">
+    <div class="card-header">
+      <h3 class="card-title">Run seleccionado</h3>
+    </div>
+
+    <div class="card-body">
+      {% if selected_run %}
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <div>Run: <code>{{ selected_run.id }}</code></div>
+
+          {% if selected_run.status == "success" %}
+            <span class="badge text-bg-success">SUCCESS</span>
+          {% elif selected_run.status == "failed" %}
+            <span class="badge text-bg-danger">FAILED</span>
+          {% else %}
+            <span class="badge text-bg-secondary">{{ selected_run.status }}</span>
+          {% endif %}
+        </div>
+
+        <div class="mt-2 text-muted">
+          Provider: <code>{{ selected_run.provider }}</code> · Kind: <code>{{ selected_run.kind }}</code>
+        </div>
+
+        <div class="mt-2">
+          <a href="/admin/core/run/{{ selected_run.id }}/change/">Abrir en admin</a>
+        </div>
+
+        {% if selected_run.error_message %}
+          <div class="mt-3 alert alert-danger mb-0">
+            <strong>Error:</strong> {{ selected_run.error_message }}
+          </div>
+        {% endif %}
+
+        {% if selected_run.status == "success" %}
+          <div class="mt-3 d-flex flex-wrap gap-2">
+            <a class="btn btn-outline-primary btn-sm"
+               href="/seo/projects/{{ project.id }}/keywords/overview/export.pdf?run_id={{ selected_run.id }}">
+              Export PDF
+            </a>
+            <a class="btn btn-outline-primary btn-sm"
+               href="/seo/projects/{{ project.id }}/keywords/overview/export.csv?run_id={{ selected_run.id }}">
+              Export CSV
+            </a>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="text-muted">
+          No hay run seleccionado. Escribe una keyword y pulsa Fetch.
+        </div>
       {% endif %}
-    {% else %}
-      <div>No hay run seleccionado. Escribe una keyword y pulsa Fetch.</div>
-    {% endif %}
-
-    {% if selected_run and selected_run.status == "success" %}
-      <p>
-        <a href="/seo/projects/{{ project.id }}/keywords/overview/export.csv?run_id={{ selected_run.id }}">Export CSV</a>
-      </p>
-    {% endif %}
+    </div>
   </div>
 
+  <!-- Histórico -->
   <div class="card">
-    <h2>Histórico de runs (máx 20)</h2>
-    {% if runs %}
-      <ul>
-        {% for r in runs %}
-          <li>
-            <a href="/seo/projects/{{ project.id }}/keywords/overview/?q={{ keyword }}&run_id={{ r.id }}">{{ r.created_at }} — {{ r.status }} — {{ r.id }}</a>
-          </li>
-        {% endfor %}
-      </ul>
-    {% else %}
-      <div>Sin runs todavía (para la keyword actual).</div>
-    {% endif %}
+    <div class="card-header">
+      <h3 class="card-title">Histórico de runs (máx 20)</h3>
+    </div>
+    <div class="card-body">
+      {% if runs %}
+        <div class="table-responsive">
+          <table class="table table-sm table-striped mb-0">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Status</th>
+                <th>Run</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in runs %}
+                <tr>
+                  <td>{{ r.created_at }}</td>
+                  <td>{{ r.status }}</td>
+                  <td><code>{{ r.id }}</code></td>
+                  <td class="text-end">
+                    <a class="btn btn-outline-dark btn-sm"
+                       href="/seo/projects/{{ project.id }}/keywords/overview/?q={{ keyword }}&run_id={{ r.id }}">
+                      Ver
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-muted">Sin runs todavía (para la keyword actual).</div>
+      {% endif %}
+    </div>
   </div>
 
+  <!-- Métricas -->
   <div class="card">
-    <h2>Métricas</h2>
-    {% if metrics %}
-      <table>
-        <thead>
-          <tr>
-            <th>Keyword</th>
-            <th>Avg monthly searches</th>
-            <th>CPC micros</th>
-            <th>Competition</th>
-            <th>Locale</th>
-            <th>Geo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for m in metrics %}
-            <tr>
-              <td>{{ m.keyword }}</td>
-              <td>{{ m.avg_monthly_searches }}</td>
-              <td>{{ m.cpc_micros }}</td>
-              <td>{{ m.competition_level }}</td>
-              <td>{{ m.locale }}</td>
-              <td><code>{{ m.geo }}</code></td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <div>No hay métricas para mostrar.</div>
-    {% endif %}
+    <div class="card-header">
+      <h3 class="card-title">Métricas</h3>
+    </div>
+    <div class="card-body">
+      {% if metrics %}
+        <div class="table-responsive">
+          <table class="table table-sm table-striped table-hover align-middle mb-0" id="metricsTable">
+            <thead>
+              <tr>
+                <th>Keyword</th>
+                <th class="text-end">Avg monthly searches</th>
+                <th class="text-end">CPC micros</th>
+                <th>Competition</th>
+                <th>Locale</th>
+                <th>Geo</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in metrics %}
+                <tr>
+                  <td>{{ m.keyword }}</td>
+                  <td class="text-end">{{ m.avg_monthly_searches }}</td>
+                  <td class="text-end">{{ m.cpc_micros }}</td>
+                  <td>{{ m.competition_level }}</td>
+                  <td>{{ m.locale }}</td>
+                  <td><code>{{ m.geo }}</code></td>
+                  <td>{{ m.source }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-muted">No hay métricas para mostrar.</div>
+      {% endif %}
+    </div>
   </div>
+
+  {# Opcional: si después activas simple-datatables/local #}
+
+  {% block extra_js %}
+    <script>
+      // init datatable aquí si lo quieres (AdminLTE4 trae simple-datatables en node_modules si lo copias a static)
+    </script>
+  {% endblock %}
+
 {% endblock %}

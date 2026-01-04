@@ -54,13 +54,22 @@ def project_setup(request, project_id: int):
     statuses_qs = IntegrationStatus.objects.filter(project=project)
     statuses = {s.provider: s for s in statuses_qs}
 
+    providers = ["gsc", "ga4", "ads"]
+    provider_rows = [(prov, statuses.get(prov)) for prov in providers]
+
+    checklist = [
+        # ... tu checklist ...
+    ]
+
     ctx = {
         "project": project,
-        "statuses": statuses,
-        "providers": ["gsc", "ga4", "ads"],
+        "providers": providers,
+        "provider_rows": provider_rows,
+        "checklist": checklist,
         "mock_ads_enabled": _mock_allowed(),
     }
     return render(request, "seo/project_setup.html", ctx)
+
 
 
 def keyword_overview(request, project_id: int):

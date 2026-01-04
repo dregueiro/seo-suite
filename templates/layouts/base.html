@@ -1,40 +1,67 @@
-<!doctype html>
 {% load static %}
+<!doctype html>
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}SEOSuite{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    {# cuando metamos AdminLTE, aquí van sus CSS #}
-    {% block head_css %}
-      <style>
-        body { font-family: system-ui, Arial; margin: 24px; }
-        .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-        .msg { padding: 10px 12px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #ddd; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; }
-        code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
-        .pill { padding: 4px 10px; border-radius: 999px; border: 1px solid #ccc; display: inline-block; }
-        .ok { border-color: #2d8a34; }
-        .fail { border-color: #b42318; }
-        .unk { border-color: #888; }
-      </style>
-    {% endblock %}
+    <!-- AdminLTE v4 (local) -->
+    <link rel="stylesheet" href="{% static 'vendor/adminlte4/dist/css/adminlte.min.css' %}">
+
+    <!-- Bootstrap Icons (local) -->
+    <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/font/bootstrap-icons.min.css' %}">
+
+    {% block extra_css %}{% endblock %}
   </head>
 
-  <body>
-    <header style="margin-bottom:16px;">
-      <strong>SEOSuite</strong>
-      <span style="margin-left:8px; color:#666;">Release 1</span>
-      {% block header_right %}{% endblock %}
-    </header>
+  <!-- AdminLTE v4 body classes (como el ejemplo) -->
+  <body class="layout-fixed sidebar-expand-lg sidebar-open bg-body-tertiary">
+    <div class="app-wrapper">
+      {% include "layouts/navbar.html" %}
+      {% include "layouts/sidebar.html" %}
 
-    {% include "partials/messages.html" %}
+      <main class="app-main">
+        <!-- Content header -->
+        <div class="app-content-header">
+          <div class="container-fluid">
+            <div class="row">
+              <div class="col-sm-6">
+                <h3 class="mb-0">{% block page_title %}SEOSuite{% endblock %}</h3>
+              </div>
+              <div class="col-sm-6">
+                {% block breadcrumbs %}{% endblock %}
+              </div>
+            </div>
+          </div>
+        </div>
 
-    {% block content %}{% endblock %}
+        <!-- Main content -->
+        <div class="app-content">
+          <div class="container-fluid">
+            {% if messages %}
+              {% for m in messages %}
+                <div class="alert alert-info mb-3" role="alert">{{ m }}</div>
+              {% endfor %}
+            {% endif %}
 
-    {# cuando metamos AdminLTE, aquí van sus JS #}
-    {% block footer_js %}{% endblock %}
+            {% block content %}{% endblock %}
+          </div>
+        </div>
+      </main>
+
+      <footer class="app-footer">
+        <div class="float-end d-none d-sm-inline">Release 1</div>
+        <strong>SEOSuite</strong>
+      </footer>
+    </div>
+
+    <!-- Bootstrap (local) -->
+    <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+
+    <!-- AdminLTE (local) -->
+    <script src="{% static 'vendor/adminlte4/dist/js/adminlte.min.js' %}"></script>
+
+    {% block extra_js %}{% endblock %}
   </body>
 </html>
