@@ -29,20 +29,19 @@
 
     <div class="card">
       <h2>Buscar keyword</h2>
-      <form method="post" action="/kw/projects/{{ project.id }}/overview/fetch/">
+      <form method="post" action="/kw/projects/{{ project.id }}/overview/mock/">
         {% csrf_token %}
-        <div class="row">
-          <input type="text" name="keyword" value="{{ keyword }}" placeholder="Ej: zapatos mujer" style="padding:10px;border:1px solid #ccc;border-radius:10px;min-width:320px;" />
-          <button type="submit" style="padding:10px 14px;border:1px solid #ccc;border-radius:10px;background:white;cursor:pointer;">
-            Fetch (Ads)
-          </button>
-          <a href="/seo/projects/{{ project.id }}/setup/">Setup</a>
-          <a href="/admin/projects/project/{{ project.id }}/change/">Editar Project</a>
-        </div>
+        <input name="keyword" value="{{ keyword }}" placeholder="Ej: zapatos mujer" />
+        <button type="submit">Fetch Mock</button>
+
+        <a href="/seo/projects/{{ project.id }}/keywords/magic/">Keyword Magic</a> |
+        <a href="/seo/projects/{{ project.id }}/setup/">Setup</a>
       </form>
-      <p style="margin-top:10px;">
-        Gate: requiere Ads PASS. Si falla, revisa el último Run en <a href="/admin/core/run/">Runs</a>.
+
+      <p style="margin-top:8px;">
+        <small>Modo DEV: Mock Keyword Planner (hasta que aprueben Ads Basic).</small>
       </p>
+
     </div>
 
     <div class="card">
@@ -70,6 +69,15 @@
       {% else %}
         <div>No hay run seleccionado. Escribe una keyword y pulsa Fetch.</div>
       {% endif %}
+      {% if selected_run and selected_run.status == "success" %}
+        <p>
+          <a href="/seo/projects/{{ project.id }}/keywords/overview/export.pdf?run_id={{ selected_run.id }}">Export PDF</a>
+        </p>
+         <p>
+          <a href="/seo/projects/{{ project.id }}/keywords/overview/export.cvs?run_id={{ selected_run.id }}">Export CVS</a>
+        </p>
+      {% endif %}
+
     </div>
 
     <div class="card">

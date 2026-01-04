@@ -7,6 +7,7 @@ def health(_request):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("core/", include("core.urls")),
     path("health/", health),
     path("seo/", include("seo.urls")),
     path("kw/", include("keyword_research.urls")),

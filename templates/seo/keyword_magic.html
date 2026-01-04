@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Keyword Magic</title></head>
+<body style="font-family:system-ui;margin:24px;">
+  <h1>Keyword Magic Tool: {{ project.name }}</h1>
+
+  {% if messages %}<ul>{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
+
+  <form method="get" action="">
+    <input name="q" value="{{ seed }}" placeholder="seed keyword" style="padding:8px;min-width:320px;">
+    <button type="submit" style="padding:8px;">Buscar</button>
+    <a href="/seo/projects/{{ project.id }}/keywords/overview/">Keyword Overview</a>
+  </form>
+
+  <hr>
+
+  <h3>Fetch (Mock, DEV)</h3>
+  <form method="post" action="/kw/projects/{{ project.id }}/magic/mock/">
+    {% csrf_token %}
+    <input name="seed" value="{{ seed }}" placeholder="seed keyword" style="padding:8px;min-width:320px;">
+    <input name="limit" value="50" style="padding:8px;width:80px;">
+    <button type="submit" style="padding:8px;">Fetch Mock</button>
+  </form>
+
+  <h3>Run seleccionado</h3>
+  {% if selected_run %}
+    <div><code>{{ selected_run.id }}</code> — {{ selected_run.status }} — {{ selected_run.provider }} / {{ selected_run.kind }}</div>
+    <div><a href="/admin/core/run/{{ selected_run.id }}/change/">Abrir en admin</a></div>
+    <p>
+      <a href="/seo/projects/{{ project.id }}/keywords/magic/export.csv?run_id={{ selected_run.id }}">Export CSV</a>
+  </p>
+  {% else %}
+    <div>Sin run aún.</div>
+  {% endif %}
+
+  <h3>Resultados (top 200 por volumen)</h3>
+  {% if metrics %}
+    <table border="1" cellpadding="6" cellspacing="0">
+      <tr><th>Keyword</th><th>Avg monthly</th><th>CPC micros</th><th>Competition</th><th>Source</th></tr>
+      {% for m in metrics %}
+        <tr>
+          <td>{{ m.keyword }}</td>
+          <td>{{ m.avg_monthly_searches }}</td>
+          <td>{{ m.cpc_micros }}</td>
+          <td>{{ m.competition_level }}</td>
+          <td>{{ m.source }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <div>No hay resultados.</div>
+  {% endif %}
+</body>
+</html>

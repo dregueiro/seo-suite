@@ -1,27 +1,37 @@
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 
-# Register your models here.
-from django.contrib import admin
-from core.models import Run, ProviderResponse, RunArtifact
-
-
-@admin.register(Run)
-class RunAdmin(admin.ModelAdmin):
-    list_display = ("id", "provider", "kind", "status", "cost_micros", "created_at", "finished_at")
-    list_filter = ("provider", "status", "kind")
-    search_fields = ("id", "kind", "input_hash")
-    readonly_fields = ("created_at", "updated_at", "started_at", "finished_at", "input_hash")
-
-
-@admin.register(ProviderResponse)
-class ProviderResponseAdmin(admin.ModelAdmin):
-    list_display = ("id", "provider", "endpoint", "http_status", "received_at", "run")
-    list_filter = ("provider",)
-    search_fields = ("endpoint", "run__id")
+from core.models import Run, RunArtifact
 
 
 @admin.register(RunArtifact)
 class RunArtifactAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "artifact_type", "storage_path", "size_bytes", "created_at", "run")
-    list_filter = ("artifact_type",)
-    search_fields = ("name", "storage_path", "run__id")
+    list_display = ("id", "run", "name", "artifact_type", "size_bytes", "created_at", "download")
+    readonly_fields = ("download",)
+
+    @admin.display(description="Download")
+    def download(self, obj: RunArtifact):
+        url = reverse("core_artifact_download", args=[obj.id])
+        return format_html('<a href="{}">Download</a>', url)
+
+
+class RunArtifactInline(admin.TabularInline):
+    model = RunArtifact
+    extra = 0
+    fields = ("name", "artifact_type", "size_bytes", "created_at", "download")
+    readonly_fields = ("created_at", "download")
+
+    @admin.display(description="Download")
+    def download(self, obj: RunArtifact):
+        url = reverse("core_artifact_download", args=[obj.id])
+        return format_html('<a href="{}">Download</a>', url)
+
+
+# IMPORTANTE:
+# Si ya tienes RunAdmin registrado en otro sitio, NO lo vuelvas a registrar aquí.
+# Solo añade el inline al RunAdmin existente.
+@admin.register(Run)
+class RunAdmin(admin.ModelAdmin):
+    list_display = ("id", "provider", "kind", "status", "cost_micros", "created_at", "finished_at")
+    inlines = [RunArtifactInline]

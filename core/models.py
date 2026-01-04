@@ -99,7 +99,7 @@ class RunArtifact(models.Model):
 
     run = models.ForeignKey(Run, related_name="artifacts", on_delete=models.CASCADE)
     name = models.CharField(max_length=200)
-    artifact_type = models.CharField(max_length=20, choices=ArtifactType.choices, default=ArtifactType.OTHER)
+    artifact_type = models.CharField(max_length=50, choices=ArtifactType.choices, default=ArtifactType.OTHER)
 
     storage_path = models.CharField(max_length=500, blank=True, default="")
     sha256 = models.CharField(max_length=64, blank=True, default="")
