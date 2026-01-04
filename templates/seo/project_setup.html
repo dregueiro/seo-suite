@@ -1,0 +1,85 @@
+
+<!doctype html>
+{% load seo_extras %}
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Project Setup - {{ project.name }}</title>
+    <style>
+      body { font-family: system-ui, Arial; margin: 24px; }
+      .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+      .row { display: flex; gap: 16px; flex-wrap: wrap; }
+      .pill { padding: 4px 10px; border-radius: 999px; border: 1px solid #ccc; display: inline-block; }
+      .ok { border-color: #2d8a34; }
+      .fail { border-color: #b42318; }
+      .unk { border-color: #888; }
+      code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1>Setup: {{ project.client.name }} / {{ project.name }}</h1>
+
+    <div class="card">
+      <h2>Datos del Project</h2>
+      <div>Dominio: <code>{{ project.domain }}</code></div>
+      <div>GSC property: <code>{{ project.gsc_property|default:"(vacío)" }}</code></div>
+      <div>GA4 property id: <code>{{ project.ga4_property_id|default:"(vacío)" }}</code></div>
+      <div>Ads customer id: <code>{{ project.ads_customer_id|default:"(vacío)" }}</code></div>
+      <div>Locale: <code>{{ project.country_code }}-{{ project.language_code }}</code></div>
+      <p>
+        Admin:
+        <a href="/admin/projects/project/{{ project.id }}/change/">Editar Project</a> |
+        <a href="/admin/core/run/">Ver Runs</a> |
+        <a href="/admin/integrations/integrationstatus/?project__id__exact={{ project.id }}">Ver IntegrationStatus</a>
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Estado de integraciones</h2>
+      <div class="row">
+        {% for prov in providers %}
+
+          {% with s=statuses|get_item:prov %}
+          <div>
+            <strong>{{ prov|upper }}</strong><br/>
+            {% if s %}
+              {% if s.status == "pass" %}
+                <span class="pill ok">PASS</span>
+              {% elif s.status == "fail" %}
+                <span class="pill fail">FAIL</span>
+              {% else %}
+                <span class="pill unk">{{ s.status }}</span>
+              {% endif %}
+              <div style="margin-top:6px;max-width:420px;">{{ s.message }}</div>
+              {% if s.last_run_id %}
+                <div style="margin-top:6px;">Run: <code>{{ s.last_run_id }}</code></div>
+              {% endif %}
+            {% else %}
+              <span class="pill unk">UNKNOWN</span>
+              <div style="margin-top:6px;">Aún no se ha probado.</div>
+            {% endif %}
+          </div>
+          {% endwith %}
+        {% endfor %}
+      </div>
+      <p style="margin-top:12px;">
+        Ejecuta los tests desde: <code>/admin/projects/project/</code> → actions “Test access”.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Checklist Google (qué falta hacer)</h2>
+      <ol>
+        {% for item in checklist %}
+          <li style="margin-bottom:10px;">
+            <strong>{{ item.title }}</strong><br/>
+            <span>{{ item.how }}</span>
+            {% if item.field %}
+              <div>Campo relacionado: <code>{{ item.field }}</code></div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    </div>
+  </body>
+</html>
