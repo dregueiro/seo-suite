@@ -1,29 +1,36 @@
+# keyword_research/views.py
 import os
 import json
-from datetime import timedelta
+
+from django.conf import settings
 from django.contrib import messages
+from django.contrib.contenttypes.models import ContentType
 from django.shortcuts import get_object_or_404, redirect
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from projects.models import Project
-from keyword_research.services.google_ads_keywords import fetch_keyword_overview_ads
-
-
-
-from django.conf import settings
-from django.contrib.contenttypes.models import ContentType
-from django.utils import timezone
-
 from core.models import Run, ProviderResponse
 from keyword_research.models import KeywordMetric
 from keyword_research.services import mock_keyword_planner
+from keyword_research.services.google_ads_keywords import fetch_keyword_overview_ads
+
+from core.services.runs import get_cached_success_run, stable_hash
+
 
 MOCK_PROVIDER = "internal"
 KIND_OVERVIEW_MOCK = "keyword_research.mock.keyword_overview"
 KIND_MAGIC_MOCK = "keyword_research.mock.keyword_magic"
 
+
 def _mock_allowed() -> bool:
+    # Solo en DEBUG + flag explícita para evitar confusiones
     return bool(settings.DEBUG) and os.environ.get("SEOSUITE_ALLOW_MOCK_ADS", "0") == "1"
+
+
+def _project_ct() -> ContentType:
+    return ContentType.objects.get(app_label="projects", model="project")
+
 
 @require_POST
 def fetch_overview_mock(request, project_id: int):
@@ -37,13 +44,28 @@ def fetch_overview_mock(request, project_id: int):
         messages.error(request, "Falta keyword.")
         return redirect(f"/seo/projects/{project.id}/keywords/overview/")
 
-    ct = ContentType.objects.get(app_label="projects", model="project")
+    inputs = {"project_id": project.id, "keyword": keyword}
+    input_hash = stable_hash(inputs)
+
+    # DEDUPE: reusar run success si existe
+    existing = get_cached_success_run(
+        provider=MOCK_PROVIDER,
+        kind=KIND_OVERVIEW_MOCK,
+        input_hash=input_hash,
+        max_age_days=30,
+    )
+    if existing:
+        messages.info(request, f"DEDUP: usando run existente {existing.id}")
+        return redirect(f"/seo/projects/{project.id}/keywords/overview/?q={keyword}&run_id={existing.id}")
+
+    ct = _project_ct()
+
     run = Run.objects.create(
         provider=MOCK_PROVIDER,
         kind=KIND_OVERVIEW_MOCK,
         status="running",
-        inputs={"project_id": project.id, "keyword": keyword},
-        input_hash="mock:" + keyword.lower(),
+        inputs=inputs,
+        input_hash=input_hash,
         entity_content_type=ct,
         entity_object_id=project.id,
         started_at=timezone.now(),
@@ -57,8 +79,8 @@ def fetch_overview_mock(request, project_id: int):
             provider=MOCK_PROVIDER,
             endpoint="mock_keyword_planner.overview",
             http_status=200,
-            request_body=json.dumps({"keyword": keyword}),
-            response_body=json.dumps(m.__dict__),
+            request_body=json.dumps({"keyword": keyword}, ensure_ascii=False)[:200000],
+            response_body=json.dumps(getattr(m, "__dict__", {}), ensure_ascii=False)[:200000],
         )
 
         KeywordMetric.objects.filter(project=project, run=run).delete()
@@ -75,22 +97,25 @@ def fetch_overview_mock(request, project_id: int):
             source="internal_mock",
             source_confidence=0.1,
             retrieved_at=timezone.now(),
-            run_id=run.id,
+            run_id=run.id,  # ok: setea FK por id
         )
 
         run.status = "success"
         run.finished_at = timezone.now()
         run.save(update_fields=["status", "finished_at"])
+
         messages.success(request, f"MOCK OK: {run.id}")
+
     except Exception as e:
         run.status = "failed"
         run.error_message = "Error mock overview"
-        run.error_details = json.dumps({"error": str(e)}, ensure_ascii=False)
+        run.error_details = json.dumps({"error": str(e)}, ensure_ascii=False)[:200000]
         run.finished_at = timezone.now()
         run.save(update_fields=["status", "error_message", "error_details", "finished_at"])
         messages.error(request, "MOCK FAIL")
 
     return redirect(f"/seo/projects/{project.id}/keywords/overview/?q={keyword}&run_id={run.id}")
+
 
 @require_POST
 def fetch_magic_mock(request, project_id: int):
@@ -106,13 +131,28 @@ def fetch_magic_mock(request, project_id: int):
 
     limit = int(request.POST.get("limit") or "50")
 
-    ct = ContentType.objects.get(app_label="projects", model="project")
+    inputs = {"project_id": project.id, "seed": seed, "limit": limit}
+    input_hash = stable_hash(inputs)
+
+    # DEDUPE: reusar run success si existe
+    existing = get_cached_success_run(
+        provider=MOCK_PROVIDER,
+        kind=KIND_MAGIC_MOCK,
+        input_hash=input_hash,
+        max_age_days=30,
+    )
+    if existing:
+        messages.info(request, f"DEDUP: usando run existente {existing.id}")
+        return redirect(f"/seo/projects/{project.id}/keywords/magic/?q={seed}&run_id={existing.id}")
+
+    ct = _project_ct()
+
     run = Run.objects.create(
         provider=MOCK_PROVIDER,
         kind=KIND_MAGIC_MOCK,
         status="running",
-        inputs={"project_id": project.id, "seed": seed, "limit": limit},
-        input_hash=f"mock:{seed.lower()}:{limit}",
+        inputs=inputs,
+        input_hash=input_hash,  # ✅ determinístico
         entity_content_type=ct,
         entity_object_id=project.id,
         started_at=timezone.now(),
@@ -126,8 +166,8 @@ def fetch_magic_mock(request, project_id: int):
             provider=MOCK_PROVIDER,
             endpoint="mock_keyword_planner.ideas",
             http_status=200,
-            request_body=json.dumps({"seed": seed, "limit": limit}),
-            response_body=json.dumps([it.__dict__ for it in items])[:200000],
+            request_body=json.dumps({"seed": seed, "limit": limit}, ensure_ascii=False)[:200000],
+            response_body=json.dumps([getattr(it, "__dict__", {}) for it in items], ensure_ascii=False)[:200000],
         )
 
         KeywordMetric.objects.filter(project=project, run=run).delete()
@@ -151,11 +191,13 @@ def fetch_magic_mock(request, project_id: int):
         run.status = "success"
         run.finished_at = timezone.now()
         run.save(update_fields=["status", "finished_at"])
+
         messages.success(request, f"MOCK OK: {run.id}")
+
     except Exception as e:
         run.status = "failed"
         run.error_message = "Error mock magic"
-        run.error_details = json.dumps({"error": str(e)}, ensure_ascii=False)
+        run.error_details = json.dumps({"error": str(e)}, ensure_ascii=False)[:200000]
         run.finished_at = timezone.now()
         run.save(update_fields=["status", "error_message", "error_details", "finished_at"])
         messages.error(request, "MOCK FAIL")
@@ -172,6 +214,7 @@ def fetch_overview_ads(request, project_id: int):
         messages.error(request, "Falta keyword.")
         return redirect(f"/seo/projects/{project.id}/keywords/overview/")
 
+    # Este servicio ya debe encargarse de dedupe/cache por run (use_cache=True)
     run = fetch_keyword_overview_ads(project, keyword, use_cache=True)
 
     if run.status == "success":

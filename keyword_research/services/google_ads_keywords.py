@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 from django.conf import settings
 
 from core.models import Run
-from core.services import (
+from core.services.runs import (
     RunSpec,
     attach_provider_response,
     create_run,
