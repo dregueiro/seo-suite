@@ -71,56 +71,85 @@ def project_setup(request, project_id: int):
     return render(request, "seo/project_setup.html", ctx)
 
 
-
 def keyword_overview(request, project_id: int):
     project = get_object_or_404(Project, id=project_id)
 
     keyword = (request.GET.get("q") or "").strip()
     run_id = (request.GET.get("run_id") or "").strip()
 
+    overview_kinds = [
+        "keyword_research.ads.keyword_overview",
+        "keyword_research.mock.keyword_overview",
+        "keyword_research.ads.keyword_planner_csv_import",
+    ]
+
+    # ✅ SIEMPRE definidos
+    recent_runs = (
+        Run.objects.filter(entity_object_id=project.id, kind__in=overview_kinds)
+        .order_by("-created_at")[:20]
+    )
     selected_run = None
-    metrics = KeywordMetric.objects.none()
+    artifacts = RunArtifact.objects.none()
     runs = Run.objects.none()
+    metrics = KeywordMetric.objects.none()
+
+    # 1) Resolver selected_run
     if run_id:
         selected_run = Run.objects.filter(id=run_id, entity_object_id=project.id).first()
-        if selected_run:
-            runs = Run.objects.filter(entity_object_id=project.id, id=selected_run.id)
 
-
+    # 2) Lista de runs “por keyword” (panel histórico por query)
     if keyword:
-        base_qs = Run.objects.filter(
-            kind__in=[
-                "keyword_research.ads.keyword_overview",
-                "keyword_research.mock.keyword_overview",
-                "keyword_research.ads.keyword_planner_csv_import",
-                ],
-
-            entity_object_id=project.id,
-            inputs__keyword=keyword,
-        ).order_by("-created_at")
-
+        base_qs = (
+            Run.objects.filter(
+                entity_object_id=project.id,
+                kind__in=overview_kinds,
+                inputs__keyword=keyword,
+            )
+            .order_by("-created_at")
+        )
         runs = base_qs[:20]
 
-        if run_id:
-            selected_run = Run.objects.filter(id=run_id).first()
-        else:
-            selected_run = base_qs.filter(status=Run.Status.SUCCESS).first()
+        if not selected_run:
+            selected_run = base_qs.filter(status=Run.Status.SUCCESS).first() or base_qs.first()
 
-    elif run_id:
-        selected_run = Run.objects.filter(id=run_id).first()
+    # 3) Fallback: si no hay keyword, usa el más reciente del historial
+    if not selected_run and recent_runs:
+        selected_run = recent_runs[0]
 
+    # 4) Artifacts + métricas del run seleccionado
     if selected_run:
+        artifacts = RunArtifact.objects.filter(run=selected_run).order_by("-created_at")
         metrics = KeywordMetric.objects.filter(project=project, run=selected_run).order_by("keyword")
+
+    selected_run_admin_url = None
+    if selected_run:
+        selected_run_admin_url = f"/admin/core/run/{selected_run.id}/change/"
+
+    def _run_label(r: Run) -> str:
+        inp = r.inputs or {}
+        q = inp.get("keyword") or inp.get("seed") or ""
+        created = (r.outputs or {}).get("created_metrics")
+        created_txt = f" | metrics:{created}" if created is not None else ""
+        q_txt = f" | q:{q}" if q else ""
+        return f"{r.created_at:%Y-%m-%d %H:%M} | {r.status} | {r.kind}{q_txt}{created_txt}"
+
+    recent_runs_rows = [(r.id, _run_label(r)) for r in recent_runs]
 
     ctx = {
         "project": project,
         "keyword": keyword,
-        "runs": runs,
+        "runs": runs,                 # runs filtrados por keyword (si aplica)
+        "recent_runs": recent_runs,   # últimos 20 runs (dropdown)
         "selected_run": selected_run,
+        "artifacts": artifacts,
         "metrics": metrics,
         "mock_ads_enabled": _mock_allowed(),
+        "recent_runs_rows": recent_runs_rows,
+        "selected_run_admin_url": selected_run_admin_url,
+
     }
     return render(request, "seo/keyword_overview.html", ctx)
+
 
 
 def keyword_magic(request, project_id: int):
@@ -129,29 +158,64 @@ def keyword_magic(request, project_id: int):
     seed = (request.GET.get("q") or "").strip()
     run_id = (request.GET.get("run_id") or "").strip()
 
+    magic_kinds = [
+        "keyword_research.ads.keyword_magic",
+        "keyword_research.mock.keyword_magic",
+        "keyword_research.ads.keyword_planner_csv_import",
+    ]
+
+    # ✅ SIEMPRE definidos
+    recent_runs = (
+        Run.objects.filter(entity_object_id=project.id, kind__in=magic_kinds)
+        .order_by("-created_at")[:20]
+    )
     selected_run = None
-    metrics = KeywordMetric.objects.none()
+    artifacts = RunArtifact.objects.none()
     runs = Run.objects.none()
+    metrics = KeywordMetric.objects.none()
 
+    # 1) Resolver selected_run por run_id
+    if run_id:
+        selected_run = Run.objects.filter(id=run_id, entity_object_id=project.id).first()
+    selected_run_admin_url = None
+    if selected_run:
+        selected_run_admin_url = f"/admin/core/run/{selected_run.id}/change/"
+
+    # 2) Runs por seed (si aplica)
     if seed:
-        base_qs = Run.objects.filter(
-            kind__in=["keyword_research.ads.keyword_magic", "keyword_research.mock.keyword_magic"],
-            entity_object_id=project.id,
-            inputs__seed=seed,
-        ).order_by("-created_at")
-
+        base_qs = (
+            Run.objects.filter(
+                entity_object_id=project.id,
+                kind__in=magic_kinds,
+                inputs__seed=seed,
+            )
+            .order_by("-created_at")
+        )
         runs = base_qs[:20]
 
-        if run_id:
-            selected_run = Run.objects.filter(id=run_id).first()
-        else:
-            selected_run = base_qs.filter(status=Run.Status.SUCCESS).first()
+        if not selected_run:
+            selected_run = base_qs.filter(status=Run.Status.SUCCESS).first() or base_qs.first()
 
-    elif run_id:
-        selected_run = Run.objects.filter(id=run_id).first()
+    # 3) Fallback: usa el último run del historial
+    if not selected_run and recent_runs:
+        selected_run = recent_runs[0]
 
+    # 4) Artifacts + métricas del run seleccionado
     if selected_run:
-        metrics = KeywordMetric.objects.filter(project=project, run=selected_run).order_by("-avg_monthly_searches", "keyword")[:200]
+        artifacts = RunArtifact.objects.filter(run=selected_run).order_by("-created_at")
+        metrics = (
+            KeywordMetric.objects.filter(project=project, run=selected_run)
+            .order_by("-avg_monthly_searches", "keyword")[:200]
+        )
+    def _run_label(r: Run) -> str:
+        inp = r.inputs or {}
+        q = inp.get("seed") or inp.get("keyword") or ""
+        created = (r.outputs or {}).get("created_metrics")
+        created_txt = f" | metrics:{created}" if created is not None else ""
+        q_txt = f" | q:{q}" if q else ""
+        return f"{r.created_at:%Y-%m-%d %H:%M} | {r.status} | {r.kind}{q_txt}{created_txt}"
+
+    recent_runs_rows = [(r.id, _run_label(r)) for r in recent_runs]
 
     return render(
         request,
@@ -159,12 +223,19 @@ def keyword_magic(request, project_id: int):
         {
             "project": project,
             "seed": seed,
+            "keyword": seed,            # útil si el template reutiliza {{ keyword }}
             "runs": runs,
+            "recent_runs": recent_runs,
             "selected_run": selected_run,
+            "artifacts": artifacts,
             "metrics": metrics,
             "mock_ads_enabled": _mock_allowed(),
+            "recent_runs_rows": recent_runs_rows,
+            "selected_run_admin_url": selected_run_admin_url,
+
         },
     )
+
 
 
 def keyword_overview_export_pdf(request, project_id: int):

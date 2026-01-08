@@ -10,6 +10,18 @@ from django.shortcuts import get_object_or_404
 from core.models import RunArtifact
 
 
+@staff_member_required
+def download_run_artifact(request, artifact_id: int):
+    art = RunArtifact.objects.filter(id=artifact_id).select_related("run").first()
+    if not art:
+        raise Http404("Artifact no encontrado")
+
+    path = art.storage_path
+    if not path or not os.path.exists(path):
+        raise Http404("Archivo no encontrado en disco")
+
+    return FileResponse(open(path, "rb"), as_attachment=True, filename=art.name)
+
 def _artifact_mime(artifact_type: str) -> str:
     return {
         "json": "application/json",

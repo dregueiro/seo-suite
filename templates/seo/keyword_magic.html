@@ -11,6 +11,7 @@
     </div>
   </div>
 
+  <!-- Fetch / Actions -->
   <div class="card card-primary card-outline">
     <div class="card-body">
       <form method="post">
@@ -25,20 +26,12 @@
           </div>
 
           <div class="col-md-auto">
-            <button
-              type="submit"
-              class="btn btn-primary"
-              formaction="/kw/projects/{{ project.id }}/magic/fetch/"
-            >
+            <button type="submit" class="btn btn-primary" formaction="/kw/projects/{{ project.id }}/magic/fetch/">
               Fetch (Ads)
             </button>
 
             {% if mock_ads_enabled %}
-              <button
-                type="submit"
-                class="btn btn-outline-secondary"
-                formaction="/kw/projects/{{ project.id }}/magic/mock/"
-              >
+              <button type="submit" class="btn btn-outline-secondary" formaction="/kw/projects/{{ project.id }}/magic/mock/">
                 Mock
               </button>
             {% endif %}
@@ -61,21 +54,94 @@
           status: <strong>{{ selected_run.status }}</strong>
         </div>
 
-        <div class="mt-2">
+        <div class="mt-2 d-flex flex-wrap gap-2">
           <a class="btn btn-outline-dark btn-sm"
              href="/seo/projects/{{ project.id }}/keywords/magic/export.csv?run_id={{ selected_run.id }}">
             Export CSV
           </a>
+
+          {% if selected_run_admin_url %}
+            <a class="btn btn-outline-primary btn-sm" href="{{ selected_run_admin_url }}" target="_blank">
+              Abrir Run en Admin
+            </a>
+          {% endif %}
+
+          <form method="post"
+                action="/kw/projects/{{ project.id }}/runs/{{ selected_run.id }}/keyword_metrics/delete/"
+                class="d-inline"
+                onsubmit="return confirm('¿Seguro que quieres borrar las métricas de este Run?');">
+            {% csrf_token %}
+            <input type="hidden" name="redirect_to" value="magic">
+            <input type="hidden" name="q" value="{{ seed|default:'' }}">
+            <button type="submit" class="btn btn-danger btn-sm">
+              Limpiar métricas de este Run
+            </button>
+          </form>
         </div>
       {% endif %}
     </div>
   </div>
 
   <div class="row">
+    <!-- Left: History + Artifacts -->
     <div class="col-lg-4">
+
+      <!-- Historial (últimos 20) -->
       <div class="card card-secondary card-outline">
         <div class="card-header">
-          <h3 class="card-title">Runs (máx 20)</h3>
+          <h3 class="card-title">Historial de Runs (últimos 20)</h3>
+        </div>
+        <div class="card-body">
+          <form method="get" class="row g-2 align-items-end">
+            <div class="col-12">
+              <label class="form-label">Seleccionar Run</label>
+              <select name="run_id" class="form-control">
+                <option value="">-- Elegir --</option>
+                {% for rid, label in recent_runs_rows %}
+                  <option value="{{ rid }}" {% if selected_run and rid == selected_run.id %}selected{% endif %}>
+                    {{ label }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-12">
+              <input type="hidden" name="q" value="{{ seed|default:'' }}">
+              <button class="btn btn-secondary w-100" type="submit">Ver Run</button>
+            </div>
+          </form>
+
+          {% if selected_run %}
+            <hr>
+            <div class="small">
+              <div><strong>Run:</strong> <code>{{ selected_run.id }}</code></div>
+              <div><strong>Status:</strong> {{ selected_run.status }}</div>
+              <div><strong>Kind:</strong> {{ selected_run.kind }}</div>
+            </div>
+
+            {% if artifacts %}
+              <div class="mt-3">
+                <strong>Artifacts</strong>
+                <ul class="mb-0">
+                  {% for a in artifacts %}
+                    <li>
+                      {{ a.name }} ({{ a.size_bytes }} bytes)
+                      - <a href="/core/runs/artifacts/{{ a.id }}/download/">Download</a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% else %}
+              <div class="text-muted mt-3">Este Run no tiene artifacts.</div>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Runs por seed (máx 20) -->
+      <div class="card card-secondary card-outline">
+        <div class="card-header">
+          <h3 class="card-title">Runs por seed (máx 20)</h3>
         </div>
         <div class="card-body">
           {% if runs %}
@@ -111,48 +177,52 @@
           {% endif %}
         </div>
       </div>
+
     </div>
-<!-- Import CSV (Keyword Planner UI) -->
-<div class="card card-warning card-outline">
-  <div class="card-header">
-    <h3 class="card-title">Importar CSV de Keyword Planner (sin API)</h3>
-  </div>
-  <div class="card-body">
-    <p class="text-muted mb-3">
-      Exporta CSV desde Google Ads Keyword Planner (Keyword ideas) y súbelo aquí.
-      Se crea un Run auditable y se guardan las métricas.
-    </p>
 
-    <form method="post"
-          action="/kw/projects/{{ project.id }}/planner_csv/import/"
-          enctype="multipart/form-data"
-          class="row g-2 align-items-end">
-      {% csrf_token %}
-
-      <input type="hidden" name="redirect_to" value="magic">
-
-      <div class="col-md-5">
-        <label class="form-label">Archivo CSV</label>
-        <input class="form-control" type="file" name="csv_file" accept=".csv,text/csv" required>
-      </div>
-
-      <div class="col-md-4">
-        <label class="form-label">Seed (opcional, para agrupar historial)</label>
-        <input class="form-control" type="text" name="seed" value="{{ keyword|default:'' }}" placeholder="ej: epic moments">
-      </div>
-
-      <div class="col-md-3">
-        <button class="btn btn-warning w-100" type="submit">Importar CSV</button>
-      </div>
-    </form>
-
-    <small class="text-muted d-block mt-2">
-      Límite 10MB. Guardamos el CSV como artefacto del Run para auditoría.
-    </small>
-  </div>
-</div>
-
+    <!-- Right: Import CSV + Results -->
     <div class="col-lg-8">
+
+      <!-- Import CSV -->
+      <div class="card card-warning card-outline">
+        <div class="card-header">
+          <h3 class="card-title">Importar CSV de Keyword Planner (sin API)</h3>
+        </div>
+        <div class="card-body">
+          <p class="text-muted mb-3">
+            Exporta CSV desde Google Ads Keyword Planner (Keyword ideas o Keyword stats) y súbelo aquí.
+            Se crea un Run auditable y se guardan las métricas.
+          </p>
+
+          <form method="post"
+                action="/kw/projects/{{ project.id }}/planner_csv/import/"
+                enctype="multipart/form-data"
+                class="row g-2 align-items-end">
+            {% csrf_token %}
+            <input type="hidden" name="redirect_to" value="magic">
+
+            <div class="col-md-6">
+              <label class="form-label">Archivo CSV</label>
+              <input class="form-control" type="file" name="csv_file" accept=".csv,text/csv" required>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label">Seed (opcional)</label>
+              <input class="form-control" type="text" name="seed" value="{{ seed|default:'' }}" placeholder="ej: epic moments">
+            </div>
+
+            <div class="col-md-2">
+              <button class="btn btn-warning w-100" type="submit">Importar</button>
+            </div>
+          </form>
+
+          <small class="text-muted d-block mt-2">
+            Límite 10MB. Guardamos el CSV como artefacto del Run para auditoría.
+          </small>
+        </div>
+      </div>
+
+      <!-- Results -->
       <div class="card card-secondary card-outline">
         <div class="card-header">
           <h3 class="card-title">Resultados (top 200 por volumen)</h3>
@@ -190,6 +260,7 @@
           {% endif %}
         </div>
       </div>
+
     </div>
   </div>
 {% endblock %}

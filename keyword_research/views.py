@@ -8,6 +8,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django.contrib.admin.views.decorators import staff_member_required
 
 from projects.models import Project
 from core.models import Run, ProviderResponse
@@ -287,6 +288,41 @@ def import_planner_csv(request, project_id: int):
         messages.error(request, f"Import CSV FAIL: {run.error_message}")
 
     q = keyword or seed or ""
+    if q:
+        return redirect(f"{base}?q={q}&run_id={run.id}")
+    return redirect(f"{base}?run_id={run.id}")
+
+
+@require_POST
+@staff_member_required
+def delete_run_keyword_metrics(request, project_id: int, run_id):
+    """
+    Borra KeywordMetric asociadas a un Run (UI button).
+    Staff-only para no exponer borrados a usuarios finales.
+    """
+    project = get_object_or_404(Project, id=project_id)
+
+    redirect_to = (request.POST.get("redirect_to") or "overview").strip().lower()
+    if redirect_to not in ("overview", "magic"):
+        redirect_to = "overview"
+
+    q = (request.POST.get("q") or "").strip()
+    base = f"/seo/projects/{project.id}/keywords/{redirect_to}/"
+
+    run = Run.objects.filter(id=run_id, entity_object_id=project.id).first()
+    if not run:
+        messages.error(request, "Run no encontrado para este proyecto.")
+        if q:
+            return redirect(f"{base}?q={q}")
+        return redirect(base)
+
+    qs = KeywordMetric.objects.filter(project=project, run=run)
+    count = qs.count()
+    qs.delete()
+
+    messages.success(request, f"OK: borradas {count} métricas del Run {run.id}")
+
+    # volvemos a la misma pantalla, manteniendo run_id para que se vea el panel del run
     if q:
         return redirect(f"{base}?q={q}&run_id={run.id}")
     return redirect(f"{base}?run_id={run.id}")
