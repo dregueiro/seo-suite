@@ -8,7 +8,7 @@ from integrations.services.test_access import test_gsc_access, test_ga4_access, 
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "client", "domain", "country_code", "language_code", "is_active", "created_at")
+    list_display = ("id", "name", "client", "domain", "country_code","ads_customer_id","ads_manager_customer_id", "language_code", "is_active", "created_at")
     list_filter = ("is_active", "country_code", "language_code")
     search_fields = ("name", "domain", "client__name")
     actions = ["action_test_gsc", "action_test_ga4", "action_test_ads"]

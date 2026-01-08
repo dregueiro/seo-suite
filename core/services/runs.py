@@ -8,6 +8,7 @@ from typing import Any, Dict, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
+from django.db import models
 
 from core.models import Run, ProviderResponse
 
@@ -29,9 +30,18 @@ class RunSpec:
     provider: str
     kind: str
     inputs: Dict[str, Any]
+
+    # Compat: permitir entity=project como en otras partes del repo.
+    # Internamente lo convertimos a GenericFK (ContentType + object_id).
+    entity: Optional[models.Model] = None
     entity_content_type: Optional[ContentType] = None
     entity_object_id: Optional[int] = None
 
+    def __post_init__(self) -> None:
+        if self.entity and (self.entity_content_type is None or self.entity_object_id is None):
+            ct = ContentType.objects.get_for_model(self.entity.__class__)
+            object.__setattr__(self, "entity_content_type", ct)
+            object.__setattr__(self, "entity_object_id", self.entity.pk)
 
 def create_run(spec: RunSpec) -> Run:
     return Run.objects.create(

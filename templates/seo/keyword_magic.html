@@ -1,134 +1,195 @@
 {% extends "layouts/base.html" %}
-{% load static %}
-
-{% block title %}Project Setup - {{ project.name }}{% endblock %}
+{% block title %}Keyword Magic - {{ project.name }}{% endblock %}
 
 {% block content %}
   <div class="row">
     <div class="col-12">
-      <h1 class="mb-3">Setup</h1>
+      <h1 class="mb-3">Keyword Magic</h1>
       <p class="text-muted mb-4">
         Proyecto: <strong>{{ project.client.name }}</strong> / <strong>{{ project.name }}</strong>
       </p>
     </div>
   </div>
 
-  <!-- Datos del Project -->
   <div class="card card-primary card-outline">
-    <div class="card-header">
-      <h3 class="card-title">Datos del Project</h3>
-    </div>
     <div class="card-body">
-      <div class="row g-3">
-        <div class="col-md-6">
-          <div>Dominio: <code>{{ project.domain }}</code></div>
-          <div>Locale: <code>{{ project.country_code }}-{{ project.language_code }}</code></div>
-        </div>
-        <div class="col-md-6">
-          <div>GSC property: <code>{{ project.gsc_property|default:"(vacío)" }}</code></div>
-          <div>GA4 property id: <code>{{ project.ga4_property_id|default:"(vacío)" }}</code></div>
-          <div>Ads customer id: <code>{{ project.ads_customer_id|default:"(vacío)" }}</code></div>
-        </div>
-      </div>
+      <form method="post">
+        {% csrf_token %}
+        <div class="row g-2 align-items-center">
+          <div class="col-md-6">
+            <input class="form-control" name="seed" value="{{ seed }}" placeholder="Seed, ej: zapatos mujer" />
+          </div>
 
-      <hr>
+          <div class="col-md-2">
+            <input class="form-control" name="limit" value="50" type="number" min="1" max="1000" />
+          </div>
 
-      <div class="d-flex flex-wrap align-items-center gap-2">
-        <div>
-          Mock Ads:
-          {% if mock_ads_enabled %}
-            <span class="badge text-bg-success">ON</span>
+          <div class="col-md-auto">
+            <button
+              type="submit"
+              class="btn btn-primary"
+              formaction="/kw/projects/{{ project.id }}/magic/fetch/"
+            >
+              Fetch (Ads)
+            </button>
+
+            {% if mock_ads_enabled %}
+              <button
+                type="submit"
+                class="btn btn-outline-secondary"
+                formaction="/kw/projects/{{ project.id }}/magic/mock/"
+              >
+                Mock
+              </button>
+            {% endif %}
+          </div>
+
+          <div class="col-md-auto ms-md-auto d-flex gap-2">
+            <a class="btn btn-outline-dark" href="/seo/projects/{{ project.id }}/keywords/overview/?q={{ seed|urlencode }}">
+              Keyword Overview
+            </a>
+            <a class="btn btn-outline-dark" href="/seo/projects/{{ project.id }}/setup/">
+              Setup
+            </a>
+          </div>
+        </div>
+      </form>
+
+      {% if selected_run %}
+        <div class="mt-3 small text-muted">
+          Run seleccionado: <code>{{ selected_run.id }}</code>,
+          status: <strong>{{ selected_run.status }}</strong>
+        </div>
+
+        <div class="mt-2">
+          <a class="btn btn-outline-dark btn-sm"
+             href="/seo/projects/{{ project.id }}/keywords/magic/export.csv?run_id={{ selected_run.id }}">
+            Export CSV
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-4">
+      <div class="card card-secondary card-outline">
+        <div class="card-header">
+          <h3 class="card-title">Runs (máx 20)</h3>
+        </div>
+        <div class="card-body">
+          {% if runs %}
+            <div class="table-responsive">
+              <table class="table table-sm table-striped mb-0">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Status</th>
+                    <th>Run</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for r in runs %}
+                    <tr>
+                      <td>{{ r.created_at|date:"Y-m-d H:i" }}</td>
+                      <td>{{ r.status }}</td>
+                      <td><code>{{ r.id }}</code></td>
+                      <td>
+                        <a class="btn btn-outline-dark btn-xs"
+                           href="/seo/projects/{{ project.id }}/keywords/magic/?q={{ seed|urlencode }}&run_id={{ r.id }}">
+                          Ver
+                        </a>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           {% else %}
-            <span class="badge text-bg-secondary">OFF</span>
+            <div class="text-muted">Sin runs todavía.</div>
           {% endif %}
         </div>
-
-        {% if not mock_ads_enabled %}
-          <small class="text-muted">
-            Para activar mock en local: <code>SEOSUITE_ALLOW_MOCK_ADS=1</code> en <code>.env</code> y reinicia.
-          </small>
-        {% endif %}
-      </div>
-
-      <div class="mt-3 d-flex flex-wrap gap-2">
-        <a class="btn btn-outline-dark btn-sm" href="/admin/projects/project/{{ project.id }}/change/">Editar Project</a>
-        <a class="btn btn-outline-dark btn-sm" href="/admin/core/run/">Ver Runs</a>
-        <a class="btn btn-outline-dark btn-sm" href="/admin/integrations/integrationstatus/?project__id__exact={{ project.id }}">Ver IntegrationStatus</a>
       </div>
     </div>
+<!-- Import CSV (Keyword Planner UI) -->
+<div class="card card-warning card-outline">
+  <div class="card-header">
+    <h3 class="card-title">Importar CSV de Keyword Planner (sin API)</h3>
   </div>
+  <div class="card-body">
+    <p class="text-muted mb-3">
+      Exporta CSV desde Google Ads Keyword Planner (Keyword ideas) y súbelo aquí.
+      Se crea un Run auditable y se guardan las métricas.
+    </p>
 
-  <!-- Estado de integraciones -->
-  <div class="card card-secondary card-outline">
-    <div class="card-header">
-      <h3 class="card-title">Estado de integraciones</h3>
-    </div>
-    <div class="card-body">
-      <div class="row g-3">
-        {% for prov, s in provider_rows %}
-          <div class="col-md-4">
-            <div class="border rounded p-3 h-100">
-              <div class="d-flex align-items-center justify-content-between">
-                <strong>{{ prov|upper }}</strong>
+    <form method="post"
+          action="/kw/projects/{{ project.id }}/planner_csv/import/"
+          enctype="multipart/form-data"
+          class="row g-2 align-items-end">
+      {% csrf_token %}
 
-                {% if s %}
-                  {% if s.status == "pass" %}
-                    <span class="badge text-bg-success">PASS</span>
-                  {% elif s.status == "fail" %}
-                    <span class="badge text-bg-danger">FAIL</span>
-                  {% else %}
-                    <span class="badge text-bg-secondary">{{ s.status }}</span>
-                  {% endif %}
-                {% else %}
-                  <span class="badge text-bg-secondary">UNKNOWN</span>
-                {% endif %}
-              </div>
+      <input type="hidden" name="redirect_to" value="magic">
 
-              <div class="mt-2 text-muted small">
-                {% if s %}
-                  {{ s.message }}
-                {% else %}
-                  Aún no se ha probado.
-                {% endif %}
-              </div>
+      <div class="col-md-5">
+        <label class="form-label">Archivo CSV</label>
+        <input class="form-control" type="file" name="csv_file" accept=".csv,text/csv" required>
+      </div>
 
-              {% if s and s.last_run_id %}
-                <div class="mt-2">
-                  Run: <code>{{ s.last_run_id }}</code>
-                </div>
-              {% endif %}
+      <div class="col-md-4">
+        <label class="form-label">Seed (opcional, para agrupar historial)</label>
+        <input class="form-control" type="text" name="seed" value="{{ keyword|default:'' }}" placeholder="ej: epic moments">
+      </div>
+
+      <div class="col-md-3">
+        <button class="btn btn-warning w-100" type="submit">Importar CSV</button>
+      </div>
+    </form>
+
+    <small class="text-muted d-block mt-2">
+      Límite 10MB. Guardamos el CSV como artefacto del Run para auditoría.
+    </small>
+  </div>
+</div>
+
+    <div class="col-lg-8">
+      <div class="card card-secondary card-outline">
+        <div class="card-header">
+          <h3 class="card-title">Resultados (top 200 por volumen)</h3>
+        </div>
+        <div class="card-body">
+          {% if metrics %}
+            <div class="table-responsive">
+              <table class="table table-sm table-striped mb-0">
+                <thead>
+                  <tr>
+                    <th>Keyword</th>
+                    <th class="text-end">Avg searches</th>
+                    <th class="text-end">CPC (micros)</th>
+                    <th>Competition</th>
+                    <th>Locale</th>
+                    <th>Geo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for m in metrics %}
+                    <tr>
+                      <td>{{ m.keyword }}</td>
+                      <td class="text-end">{{ m.avg_monthly_searches }}</td>
+                      <td class="text-end">{{ m.cpc_micros }}</td>
+                      <td>{{ m.competition_level }}</td>
+                      <td>{{ m.locale }}</td>
+                      <td><code>{{ m.geo }}</code></td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
             </div>
-          </div>
-        {% endfor %}
+          {% else %}
+            <div class="text-muted">No hay métricas para mostrar.</div>
+          {% endif %}
+        </div>
       </div>
-
-      <div class="mt-3 text-muted small">
-        Ejecuta los tests desde: <code>/admin/projects/project/</code> → action “Test access”.
-      </div>
-    </div>
-  </div>
-
-  <!-- Checklist -->
-  <div class="card">
-    <div class="card-header">
-      <h3 class="card-title">Checklist Google (qué falta hacer)</h3>
-    </div>
-    <div class="card-body">
-      {% if checklist %}
-        <ol class="mb-0">
-          {% for item in checklist %}
-            <li class="mb-3">
-              <strong>{{ item.title }}</strong><br/>
-              <span class="text-muted">{{ item.how }}</span>
-              {% if item.field %}
-                <div>Campo relacionado: <code>{{ item.field }}</code></div>
-              {% endif %}
-            </li>
-          {% endfor %}
-        </ol>
-      {% else %}
-        <div class="text-muted">Sin checklist configurado.</div>
-      {% endif %}
     </div>
   </div>
 {% endblock %}

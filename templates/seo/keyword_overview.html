@@ -174,6 +174,39 @@
       {% endif %}
     </div>
   </div>
+  <!-- Import CSV (Keyword Planner UI) -->
+  <div class="card card-warning card-outline">
+    <div class="card-header">
+      <h3 class="card-title">Importar CSV de Keyword Planner (sin API)</h3>
+    </div>
+    <div class="card-body">
+      <p class="text-muted mb-3">
+        Útil mientras tu developer token está en Explorer/pendiente de Basic. Exporta CSV desde Google Ads Keyword Planner y súbelo aquí.
+      </p>
+
+      <form method="post" action="/kw/projects/{{ project.id }}/planner_csv/import/" enctype="multipart/form-data" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <div class="col-md-5">
+          <label class="form-label">Archivo CSV</label>
+          <input class="form-control" type="file" name="csv_file" accept=".csv,text/csv" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Keyword (opcional, para agrupar historial)</label>
+          <input class="form-control" type="text" name="keyword" value="{{ keyword|default:'' }}" placeholder="ej: epic moments">
+          <input type="hidden" name="redirect_to" value="overview">
+          <input type="hidden" name="redirect_to" value="overview">
+
+        </div>
+        <div class="col-md-3">
+          <button class="btn btn-warning w-100" type="submit">Importar CSV</button>
+        </div>
+      </form>
+
+      <small class="text-muted d-block mt-2">
+        Límite 10MB. Guardamos el CSV como artefacto del Run para auditoría.
+      </small>
+    </div>
+  </div>
 
   <!-- Métricas -->
   <div class="card">

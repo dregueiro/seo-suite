@@ -30,6 +30,12 @@ class Project(models.Model):
         default="",
         help_text="Google Ads customer id, ej: 123-456-7890 (obligatorio para Keyword Research)",
     )
+    ads_manager_customer_id = models.CharField(
+        max_length=32,
+        blank=True,
+        null=True,
+        help_text="Opcional. CID del MCC/Manager (ej 5110999249). Si se define, SEOSuite enviará login-customer-id.",
+    )
 
     # Locale defaults (para contracts y runs)
     country_code = models.CharField(max_length=2, default="ES", help_text="ISO2, ej: ES")
@@ -43,5 +49,8 @@ class Project(models.Model):
     class Meta:
         unique_together = [("client", "name")]
 
+    def get_ads_manager_customer_id(self) -> str | None:
+            v = (self.ads_manager_customer_id or "").replace("-", "").strip()
+            return v or None
     def __str__(self) -> str:
         return f"{self.client.name} / {self.name}"

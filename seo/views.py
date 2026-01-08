@@ -81,10 +81,20 @@ def keyword_overview(request, project_id: int):
     selected_run = None
     metrics = KeywordMetric.objects.none()
     runs = Run.objects.none()
+    if run_id:
+        selected_run = Run.objects.filter(id=run_id, entity_object_id=project.id).first()
+        if selected_run:
+            runs = Run.objects.filter(entity_object_id=project.id, id=selected_run.id)
+
 
     if keyword:
         base_qs = Run.objects.filter(
-            kind__in=["keyword_research.ads.keyword_overview", "keyword_research.mock.keyword_overview"],
+            kind__in=[
+                "keyword_research.ads.keyword_overview",
+                "keyword_research.mock.keyword_overview",
+                "keyword_research.ads.keyword_planner_csv_import",
+                ],
+
             entity_object_id=project.id,
             inputs__keyword=keyword,
         ).order_by("-created_at")
