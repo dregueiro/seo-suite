@@ -1,0 +1,30 @@
+<div class="table-responsive">
+  <table class="table table-striped table-hover align-middle mb-0">
+    <thead>
+      <tr>
+        <th>Keyword</th>
+        <th class="text-end">Avg. searches</th>
+        <th class="text-end">CPC</th>
+        <th>Competition</th>
+        <th class="text-end">Source</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for m in items %}
+        <tr>
+          <td class="fw-medium">{{ m.keyword }}</td>
+          <td class="text-end">{{ m.avg_monthly_searches }}</td>
+          <td class="text-end">
+            {% if m.cpc_micros %}{{ m.cpc_micros|floatformat:0 }}{% endif %}
+          </td>
+          <td>{{ m.competition_level }}</td>
+          <td class="text-end">{{ m.source }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="5" class="text-muted">Sin datos.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

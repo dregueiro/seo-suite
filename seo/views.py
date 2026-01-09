@@ -104,6 +104,35 @@ def _get_model(app_label: str, model_name: str):
 def _mock_allowed() -> bool:
     return bool(settings.DEBUG) and os.environ.get("SEOSUITE_ALLOW_MOCK_ADS", "0") == "1"
 
+def _integration_is_ok(status_obj) -> bool:
+    """
+    Determina si una IntegrationStatus está OK sin asumir un esquema fijo.
+    Soporta campos comunes: ok/is_ok/is_connected/status/state/enabled.
+    Nunca rompe si el modelo cambia.
+    """
+    if not status_obj:
+        return False
+
+    # bool fields comunes
+    for attr in ("ok", "is_ok", "is_connected", "connected", "enabled"):
+        if hasattr(status_obj, attr):
+            try:
+                return bool(getattr(status_obj, attr))
+            except Exception:
+                pass
+
+    # campos tipo string con estados
+    for attr in ("status", "state"):
+        if hasattr(status_obj, attr):
+            try:
+                val = (getattr(status_obj, attr) or "").strip().upper()
+                if val in ("OK", "PASS", "SUCCESS", "CONNECTED", "ACTIVE", "ENABLED", "VALID"):
+                    return True
+            except Exception:
+                pass
+
+    return False
+
 
 def _write_artifact(*, run: Run, filename: str, artifact_type: str, content_bytes: bytes) -> RunArtifact:
     """
@@ -308,14 +337,12 @@ def keyword_overview(request, project_id: int):
     }
     return render(request, "seo/keyword_overview.html", ctx)
 
-
-
 @login_required
 def keyword_magic(request, project_id: int):
     project = get_object_or_404(Project, id=project_id)
 
-    # Filtros UI (no rompen aunque no se usen todavía)
-    q = (request.GET.get("q") or "").strip()  # seed
+    # Filtros UI (seguros aunque no existan en template)
+    q = (request.GET.get("q") or "").strip()
     seed = q
     run_id = (request.GET.get("run_id") or "").strip()
 
@@ -330,22 +357,21 @@ def keyword_magic(request, project_id: int):
         "keyword_research.ads.keyword_planner_csv_import",
     ]
 
-    # Historial de runs (dropdown)
     recent_runs = (
         Run.objects.filter(entity_object_id=project.id, kind__in=magic_kinds)
         .order_by("-created_at")[:20]
     )
 
     selected_run = None
-    artifacts = RunArtifact.objects.none()
+    artifacts_qs = RunArtifact.objects.none()
     runs = Run.objects.none()
     metrics_qs = KeywordMetric.objects.none()
 
-    # 1) Resolver run por run_id explícito
+    # 1) selected_run por run_id
     if run_id:
         selected_run = Run.objects.filter(id=run_id, entity_object_id=project.id).first()
 
-    # 2) Runs por seed
+    # 2) runs por seed
     if seed:
         base_qs = (
             Run.objects.filter(
@@ -359,38 +385,36 @@ def keyword_magic(request, project_id: int):
         if not selected_run:
             selected_run = base_qs.filter(status=Run.Status.SUCCESS).first() or base_qs.first()
 
-    # 3) Fallback: último run del historial
+    # 3) fallback: último run
     if not selected_run and recent_runs:
         selected_run = recent_runs[0]
 
     selected_run_admin_url = None
     if selected_run:
         selected_run_admin_url = f"/admin/core/run/{selected_run.id}/change/"
-        artifacts = RunArtifact.objects.filter(run=selected_run).order_by("-created_at")
+        artifacts_qs = RunArtifact.objects.filter(run=selected_run).order_by("-created_at")
 
-        # dataset base (no más de 200 como venías)
         metrics_qs = (
             KeywordMetric.objects.filter(project=project, run=selected_run)
             .order_by("-avg_monthly_searches", "keyword")
         )
 
-        # Aplicar filtros suaves (baratos, trazables, sin providers)
-        # min_volume
+        # filtros baratos (solo DB)
         if min_volume.isdigit():
             metrics_qs = metrics_qs.filter(avg_monthly_searches__gte=int(min_volume))
 
-        # competition exact
         if competition:
             metrics_qs = metrics_qs.filter(competition_level__iexact=competition)
 
-        # include/exclude sobre keyword
         if include:
             metrics_qs = metrics_qs.filter(keyword__icontains=include)
+
         if exclude:
             metrics_qs = metrics_qs.exclude(keyword__icontains=exclude)
 
         metrics_qs = metrics_qs[:200]
 
+    # Dropdown labels (si lo usás en templates)
     def _run_label(r: Run) -> str:
         inp = r.inputs or {}
         qq = inp.get("seed") or inp.get("keyword") or ""
@@ -401,13 +425,49 @@ def keyword_magic(request, project_id: int):
 
     recent_runs_rows = [(r.id, _run_label(r)) for r in recent_runs]
 
-    # Ads gate (sin asumir campos fijos)
+    # Gate Ads (sin romper)
     ads_status = IntegrationStatus.objects.filter(project=project, provider="ads").first()
-    ads_can_fetch = _integration_is_ok(ads_status)  # si no está, queda False
+    ads_can_fetch = _integration_is_ok(ads_status)
 
-    # rows para el template nuevo (contract-like)
+    # ---- Tabs: Broad / Questions / Related (solo heurística) ----
+    metrics_list = list(metrics_qs)  # una sola query, luego clasificamos en memoria
+
+    ideas_questions = []
+    ideas_related = []
+    ideas_broad = []
+
+    q_words = (
+        "how", "what", "why", "when", "where", "who",
+        "cuanto", "cuánto", "que", "qué", "como", "cómo"
+    )
+    seed_l = (seed or "").lower()
+
+    for m in metrics_list:
+        kw = (m.keyword or "").lower()
+
+        # Questions
+        if any(w in kw.split() for w in q_words) or kw.startswith(
+            ("how ", "what ", "why ", "when ", "where ", "who ",
+             "cuanto ", "cuánto ", "que ", "qué ", "como ", "cómo ")
+        ):
+            ideas_questions.append(m)
+            continue
+
+        # Related (contiene el seed)
+        if seed_l and seed_l in kw:
+            ideas_related.append(m)
+            continue
+
+        # Broad (resto)
+        ideas_broad.append(m)
+
+    ideas_questions = ideas_questions[:50]
+    ideas_related = ideas_related[:50]
+    ideas_broad = ideas_broad[:50]
+
+    # rows para el template "analytics" (si lo usás)
     rows = []
-    for m in metrics_qs:
+    for m in metrics_list:
         rows.append({
             "keyword": m.keyword,
             "avg_monthly_searches": m.avg_monthly_searches,
@@ -416,48 +476,54 @@ def keyword_magic(request, project_id: int):
             "source": m.source,
         })
 
+    # artifacts para template (download_url safe)
+    artifacts = []
+    for a in artifacts_qs:
+        artifacts.append({
+            "name": a.name,
+            "download_url": getattr(a, "download_url", None) or f"/admin/core/runartifact/{a.id}/change/",
+        })
+
     return render(
         request,
         "seo/keyword_magic.html",
         {
-            # Layout/breadcrumb si lo querés (opcional). Si tu base lo usa, esto ayuda.
             "title": "Keyword Magic",
             "subTitle": project.name,
-
             "project": project,
 
-            # 🔥 variables esperadas por el template “analytics”
+            # template analytics
             "rows": rows,
             "q": q,
             "min_volume": min_volume,
             "competition": competition,
             "include": include,
             "exclude": exclude,
-            "run": selected_run,          # el template nuevo usa "run"
+            "run": selected_run,
             "recent_runs": recent_runs,
-            "artifacts": [
-                # compatibilidad: tu template nuevo usa a.name/a.download_url
-                # si tu RunArtifact no tiene download_url, no rompe porque lo pintamos abajo seguro:
-                {
-                    "name": a.name,
-                    "download_url": getattr(a, "download_url", None) or (f"/admin/core/runartifact/{a.id}/change/"),
-                }
-                for a in artifacts
-            ],
+            "artifacts": artifacts,
             "ads_can_fetch": ads_can_fetch,
-            "has_export_csv": True,       # ya existe keyword_magic_export_csv
+            "has_export_csv": True,
 
-            # ✅ retrocompatibilidad con tu template viejo
+            # compat
             "seed": seed,
             "keyword": seed,
             "runs": runs,
             "selected_run": selected_run,
-            "metrics": metrics_qs,
+            "metrics": metrics_list,
             "mock_ads_enabled": _mock_allowed(),
             "recent_runs_rows": recent_runs_rows,
             "selected_run_admin_url": selected_run_admin_url,
+
+            # tabs
+            "ideas_broad": ideas_broad,
+            "ideas_questions": ideas_questions,
+            "ideas_related": ideas_related,
         },
     )
+
+
+
 
 @login_required
 def keyword_overview_export_pdf(request, project_id: int):
