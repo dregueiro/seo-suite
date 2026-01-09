@@ -1,29 +1,95 @@
-{% extends 'layouts/base.html' %}
 
-{% load static %}
+
+{% extends "layouts/base.html" %}
 
 {% block content %}
-<div class="card">
-  <div class="card-body">
-    <h5 class="card-title mb-3">Project Setup</h5>
+<!-- PROJECT_SETUP TEMPLATE ACTIVE. project_id={{ project.id }} -->
+<div class="row g-3">
 
-    <form method="post" class="row g-3">
-      {% csrf_token %}
+  <!-- Actions -->
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body d-flex gap-2 flex-wrap align-items-center">
+        <form method="post" action="{% url 'seo:test_access' project.id 'gsc' %}">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-outline-primary" type="submit">Test access GSC</button>
+        </form>
 
-      <div class="col-md-6">
-        <label class="form-label">Dominio</label>
-        <input type="text" name="domain" class="form-control" value="{{ form.domain.value|default_if_none:'' }}">
+        <form method="post" action="{% url 'seo:test_access' project.id 'ga4' %}">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-outline-primary" type="submit">Test access GA4</button>
+        </form>
+
+        <form method="post" action="{% url 'seo:test_access' project.id 'ads' %}">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-outline-primary" type="submit">Test access Ads</button>
+        </form>
+
+        <a class="btn btn-sm btn-light ms-auto" href="/admin/projects/project/{{ project.id }}/change/">Abrir Project en admin</a>
       </div>
-
-      <div class="col-md-6">
-        <label class="form-label">País</label>
-        <input type="text" name="country" class="form-control" value="{{ form.country.value|default_if_none:'' }}">
-      </div>
-
-      <div class="col-12">
-        <button class="btn btn-primary" type="submit">Guardar</button>
-      </div>
-    </form>
+    </div>
   </div>
+
+  <!-- Providers status -->
+  <div class="col-12">
+    <div class="row g-3">
+      {% for prov, st in provider_rows %}
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-body">
+              <div class="d-flex align-items-center justify-content-between">
+                <div class="text-muted text-uppercase small">{{ prov }}</div>
+                {% if st %}
+                  {% if st.status == "pass" %}
+                    <span class="badge bg-success">PASS</span>
+                  {% elif st.status == "fail" %}
+                    <span class="badge bg-danger">FAIL</span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ st.status|upper }}</span>
+                  {% endif %}
+                {% else %}
+                  <span class="badge bg-secondary">NOT_CONFIGURED</span>
+                {% endif %}
+              </div>
+
+              <div class="mt-2">
+                {% if st %}
+                  <div class="small text-muted">Último check: {{ st.last_checked_at|default:"-" }}</div>
+                  <div class="mt-1">{{ st.message|default:"-" }}</div>
+
+                  {% if st.last_run_id %}
+                    <div class="mt-2">
+                      <a class="btn btn-sm btn-outline-secondary" href="{% url 'seo:run_detail' st.last_run_id %}">Ver Run</a>
+
+                    </div>
+                  {% endif %}
+                {% else %}
+                  <div class="mt-2 text-muted small">Sin ejecución de test aún.</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Checklist (opcional) -->
+  {% if checklist %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-muted small mb-2">Checklist</div>
+        <ul class="mb-0">
+          {% for item in checklist %}
+            <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
 </div>
+
 {% endblock %}
