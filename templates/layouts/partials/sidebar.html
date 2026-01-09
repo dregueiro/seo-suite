@@ -1,430 +1,99 @@
-
 {% load static %}
-
-<!-- Left Sidebar Start -->
-
 
 <!--- Sidemenu -->
 <div id="sidebar-menu">
 
-    <div class="logo-box">
-        <a class='logo logo-light' href='/hando/html/'>
-            <span class="logo-sm">
-                <img src="{% static 'vendor/hando/dist/assets/assets/images/logo-sm.png' %}" alt="" height="22">
-            </span>
-            <span class="logo-lg">
-                <img src="{% static 'vendor/hando/dist/assets/assets/images/logo-light.png' %}" alt="" height="24">
-            </span>
-        </a>
-        <a class='logo logo-dark' href='/hando/html/'>
-            <span class="logo-sm">
-                <img src="{% static 'vendor/hando/dist/assets/assets/images/logo-sm.png' %}" alt="" height="22">
-            </span>
-            <span class="logo-lg">
-                <img src="{% static 'vendor/hando/dist/assets/assets/images/logo-dark.png' %}" alt="" height="24">
-            </span>
-        </a>
-    </div>
+  <div class="logo-box">
+    <!-- ✅ arreglé assets/assets -->
+    <a class="logo logo-light" href="{% url 'seo:dashboard' %}">
+      <span class="logo-sm">
+        <img src="{% static 'vendor/hando/dist/assets/images/logo-sm.png' %}" alt="logo" height="22">
+      </span>
+      <span class="logo-lg">
+        <img src="{% static 'vendor/hando/dist/assets/images/logo-light.png' %}" alt="logo" height="24">
+      </span>
+    </a>
 
-    <ul id="side-menu">
+    <a class="logo logo-dark" href="{% url 'seo:dashboard' %}">
+      <span class="logo-sm">
+        <img src="{% static 'vendor/hando/dist/assets/images/logo-sm.png' %}" alt="logo" height="22">
+      </span>
+      <span class="logo-lg">
+        <img src="{% static 'vendor/hando/dist/assets/images/logo-dark.png' %}" alt="logo" height="24">
+      </span>
+    </a>
+  </div>
 
-        <li class="menu-title">Menu</li>
+  <ul id="side-menu">
+    <li class="menu-title">SEO</li>
+    <li>
+      <a class="tp-link" href="{% url 'seo:dashboard' %}">
+        <i data-feather="home"></i>
+        <span> Dashboard </span>
+      </a>
+    </li>
+    <li>
+      <a class="tp-link" href="{% url 'seo:projects_list' %}">
+        <i data-feather="briefcase"></i>
+        <span> Projects </span>
+      </a>
+    </li>
+    <li>
+      <a class="tp-link" href="{% url 'seo:runs_list' %}">
+        <i data-feather="activity"></i>
+        <span> Runs </span>
+      </a>
+    </li>
 
-        <li>
-            <a href="#sidebarDashboards" data-bs-toggle="collapse">
-                <i data-feather="home"></i>
-                <span> Projects </span>
-                <span class="menu-arrow"></span>
-            </a>
-            <div class="collapse" id="sidebarDashboards">
-                <ul class="nav-second-level">
-                    <li>
-                        <a class='tp-link' href="{% url 'seo_dashboard' %}" >List</a>
-                    </li>
+    <li class="menu-title mt-2">CORE</li>
 
-                </ul>
-            </div>
-        </li>
+    <li>
+      <a class="tp-link" href="/admin/">
+        <i data-feather="settings"></i>
+        <span> Provider Responses </span>
+      </a>
+    </li>
+    <li>
+      <a class="tp-link" href="/admin/projects/project/">
+        <i data-feather="folder"></i>
+        <span> Runs artifacts </span>
+      </a>
+    </li>
 
-<!--        <li class="menu-title">Pages</li>
+    <li>
+      <a class="tp-link" href="/admin/core/run/">
+        <i data-feather="list"></i>
+        <span> Runs </span>
+      </a>
+    </li>
+    <li class="menu-title">INTEGRATIONS</li>
+    <li>
+      <a class="tp-link" href="/admin/integrations/integrationstatus/">
+        <i data-feather="shield"></i>
+        <span> Integration Status </span>
+      </a>
+    </li>
+    <li class="menu-title mt-2">Keyword Research</li>
 
-        <li>
-            <a href="#sidebarAuth" data-bs-toggle="collapse">
-                <i data-feather="users"></i>
-                <span> Authentication </span>
-                <span class="menu-arrow"></span>
-            </a>
-            <div class="collapse" id="sidebarAuth">
-                <ul class="nav-second-level">
-                    <li>
-                        <a class='tp-link' href='/hando/html/auth-login'>Log In</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/auth-register'>Register</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/auth-recoverpw'>Recover Password</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/auth-lock-screen'>Lock Screen</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/auth-confirm-mail'>Confirm Mail</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/email-verification'>Email Verification</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/auth-logout'>Logout</a>
-                    </li>
-                </ul>
-            </div>
-        </li>
+<li>
+  <a class="tp-link" href="{% url 'seo:projects_list' %}">
+    <i data-feather="search"></i>
+    <span> Keyword Overview </span>
+  </a>
+</li>
 
-        <li>
-            <a href="#sidebarError" data-bs-toggle="collapse">
-                <i data-feather="alert-octagon"></i>
-                <span> Error Pages </span>
-                <span class="menu-arrow"></span>
-            </a>
-            <div class="collapse" id="sidebarError">
-                <ul class="nav-second-level">
-                    <li>
-                        <a class='tp-link' href='/hando/html/error-404'>Error 404</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/error-500'>Error 500</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/error-503'>Error 503</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/error-429'>Error 429</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/offline-page'>Offline Page</a>
-                    </li>
-                </ul>
-            </div>
-        </li>
+<li>
+  <a class="tp-link" href="{% url 'seo:projects_list' %}">
+    <i data-feather="grid"></i>
+    <span> Keyword Magic </span>
+  </a>
+</li>
 
-        <li>
-            <a href="#sidebarExpages" data-bs-toggle="collapse">
-                <i data-feather="file-text"></i>
-                <span> Utility </span>
-                <span class="menu-arrow"></span>
-            </a>
-            <div class="collapse" id="sidebarExpages">
-                <ul class="nav-second-level">
-                    <li>
-                        <a class='tp-link' href='/hando/html/pages-starter'>Starter</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/pages-profile'>Profile</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/pages-pricing'>Pricing</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/pages-timeline'>Timeline</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/pages-invoice'>Invoice</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/pages-faqs'>FAQs</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/pages-gallery'>Gallery</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/pages-maintenance'>Maintenance</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/pages-coming-soon'>Coming Soon</a>
-                    </li>
-                </ul>
-            </div>
-        </li>
-
-        <li class="menu-title mt-2">Apps</li>
-
-        <li>
-            <a class='tp-link' href='/hando/html/apps-todolist'>
-                <i data-feather="columns"></i>
-                <span> Todo List </span>
-            </a>
-        </li>
-
-        <li>
-            <a class='tp-link' href='/hando/html/apps-contacts'>
-                <i data-feather="map-pin"></i>
-                <span> Contacts </span>
-            </a>
-        </li>
-
-        <li>
-            <a class='tp-link' href='/hando/html/apps-calendar'>
-                <i data-feather="calendar"></i>
-                <span> Calendar </span>
-            </a>
-        </li>
-
-        <li class="menu-title mt-2">General</li>
-
-        <li>
-            <a href="#sidebarBaseui" data-bs-toggle="collapse">
-                <i data-feather="package"></i>
-                <span> Components </span>
-                <span class="menu-arrow"></span>
-            </a>
-            <div class="collapse" id="sidebarBaseui">
-                <ul class="nav-second-level">
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-accordions'>Accordions</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-alerts'>Alerts</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-badges'>Badges</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-breadcrumb'>Breadcrumb</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-buttons'>Buttons</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-cards'>Cards</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-collapse'>Collapse</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-dropdowns'>Dropdowns</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-video'>Embed Video</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-grid'>Grid</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-images'>Images</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-list'>List Group</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-modals'>Modals</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-placeholders'>Placeholders</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-pagination'>Pagination</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-popovers'>Popovers</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-progress'>Progress</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-scrollspy'>Scrollspy</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-spinners'>Spinners</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-tabs'>Tabs</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-tooltips'>Tooltips</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/ui-typography'>Typography</a>
-                    </li>
-                </ul>
-            </div>
-        </li>
-
-        <li>
-            <a class='tp-link' href='/hando/html/widgets'>
-                <i data-feather="aperture"></i>
-                <span> Widgets </span>
-            </a>
-        </li>
-
-        <li>
-            <a href="#sidebarAdvancedUI" data-bs-toggle="collapse">
-                <i data-feather="cpu"></i>
-                <span> Extended UI </span>
-                <span class="menu-arrow"></span>
-            </a>
-            <div class="collapse" id="sidebarAdvancedUI">
-                <ul class="nav-second-level">
-                    <li>
-                        <a class='tp-link' href='/hando/html/extended-carousel'>Carousel</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/extended-notifications'>Notifications</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/extended-offcanvas'>Offcanvas</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/extended-range-slider'>Range Slider</a>
-                    </li>
-                </ul>
-            </div>
-        </li>
-
-        <li>
-            <a href="#sidebarIcons" data-bs-toggle="collapse">
-                <i data-feather="award"></i>
-                <span> Icons </span>
-                <span class="menu-arrow"></span>
-            </a>
-            <div class="collapse" id="sidebarIcons">
-                <ul class="nav-second-level">
-                    <li>
-                        <a class='tp-link' href='/hando/html/icons-feather'>Feather Icons</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/icons-mdi'>Material Design Icons</a>
-                    </li>
-                </ul>
-            </div>
-        </li>
-
-        <li>
-            <a href="#sidebarForms" data-bs-toggle="collapse">
-                <i data-feather="briefcase"></i>
-                <span> Forms </span>
-                <span class="menu-arrow"></span>
-            </a>
-            <div class="collapse" id="sidebarForms">
-                <ul class="nav-second-level">
-                    <li>
-                        <a class='tp-link' href='/hando/html/forms-elements'>General Elements</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/forms-validation'>Validation</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/forms-quilljs'>Quilljs Editor</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/forms-pickers'>Picker</a>
-                    </li>
-                </ul>
-            </div>
-        </li>
-
-        <li>
-            <a href="#sidebarTables" data-bs-toggle="collapse">
-                <i data-feather="table"></i>
-                <span> Tables </span>
-                <span class="menu-arrow"></span>
-            </a>
-            <div class="collapse" id="sidebarTables">
-                <ul class="nav-second-level">
-                    <li>
-                        <a class='tp-link' href='/hando/html/tables-basic'>Basic Tables</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/tables-datatables'>Data Tables</a>
-                    </li>
-                </ul>
-            </div>
-        </li>
-
-        <li>
-            <a href="#sidebarCharts" data-bs-toggle="collapse">
-                <i data-feather="pie-chart"></i>
-                <span> Apex Charts </span>
-                <span class="menu-arrow"></span>
-            </a>
-            <div class="collapse" id="sidebarCharts">
-                <ul class="nav-second-level">
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-area'>Area</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-bar'>Bar</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-boxplot'>Boxplot</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-bubble'>Bubble</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-candlestick'>Candlestick</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-column'>Column</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-funnel'>Funnel</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-heatmap'>Heatmap</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-line'>Line</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-mixed'>Mixed</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-pie'>Pie</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-polararea'>Polar</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-radar'>Radar</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-radialbar'>Radialbar</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-rangearea'>Range Area</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-scatter'>Scatter</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-timeline'>Timeline</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/charts-treemap'>Treemap</a>
-                    </li>
-                </ul>
-            </div>
-        </li>
-
-        <li>
-            <a href="#sidebarMaps" data-bs-toggle="collapse">
-                <i data-feather="map"></i>
-                <span> Maps </span>
-                <span class="menu-arrow"></span>
-            </a>
-            <div class="collapse" id="sidebarMaps">
-                <ul class="nav-second-level">
-                    <li>
-                        <a class='tp-link' href='/hando/html/maps-google'>Google Maps</a>
-                    </li>
-                    <li>
-                        <a class='tp-link' href='/hando/html/maps-vector'>Vector Maps</a>
-                    </li>
-                </ul>
-            </div>
-        </li>
-
-    </ul> -->
+<li>
+  <a class="tp-link" href="/admin/keyword_research/keywordmetric/">
+    <i data-feather="bar-chart-2"></i>
+    <span> Keyword Metrics (Admin) </span>
+  </a>
+</li>
 
 </div>
