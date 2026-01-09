@@ -109,15 +109,33 @@
         <div class="card-body">
           <ul class="nav nav-tabs mb-3">
             <li class="nav-item">
-              <a class="nav-link active" data-bs-toggle="tab" href="#tab-broad">Broad</a>
+              <a class="nav-link active" data-bs-toggle="tab" href="#tab-broad">
+                Broad
+                <span class="badge bg-secondary ms-1">
+                  {{ ideas_broad|length }}
+                </span>
+              </a>
             </li>
+
             <li class="nav-item">
-              <a class="nav-link" data-bs-toggle="tab" href="#tab-questions">Questions</a>
+              <a class="nav-link" data-bs-toggle="tab" href="#tab-questions">
+                Questions
+                <span class="badge bg-secondary ms-1">
+                  {{ ideas_questions|length }}
+                </span>
+              </a>
             </li>
+
             <li class="nav-item">
-              <a class="nav-link" data-bs-toggle="tab" href="#tab-related">Related</a>
+              <a class="nav-link" data-bs-toggle="tab" href="#tab-related">
+                Related
+                <span class="badge bg-secondary ms-1">
+                  {{ ideas_related|length }}
+                </span>
+              </a>
             </li>
           </ul>
+
 
           <div class="tab-content">
 
