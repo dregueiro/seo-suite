@@ -1,0 +1,15 @@
+{% load static %}
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{{ title|default:"SEOSuite" }} | SEOSuite</title>
+
+<link rel="shortcut icon" href="{% static 'images/favicon.ico' %}">
+
+{# Bootstrap + icon fonts + app css (ajusta nombres según tus archivos reales) #}
+<link href="{% static 'vendor/hando/dist/assets/css/app.min.csscss/bootstrap.min.css' %}" rel="stylesheet">
+<link href="{% static 'vendor/hando/dist/assets/css/materialdesignicons.min.css' %}" rel="stylesheet">
+<link href="{% static 'vendor/hando/dist/assets/css/app.min.css' %}" rel="stylesheet">
+<link href="{% static 'vendor/hando/dist/assets/css/custom.css' %}" rel="stylesheet">
+
+<script src={% static 'vendor/hando/dist/assets/js/head.js' %} ></script>

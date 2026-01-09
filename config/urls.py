@@ -1,14 +1,11 @@
 from django.contrib import admin
 from django.urls import path, include
-from django.http import JsonResponse
-
-def health(_request):
-    return JsonResponse({"ok": True})
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("core/", include("core.urls")),
-    path("health/", health),
+    path("accounts/", include("django.contrib.auth.urls")),
+
     path("seo/", include("seo.urls")),
-    path("kw/", include("keyword_research.urls")),
+    path("keyword-research/", include("keyword_research.urls")),
+    path("core/", include("core.urls")),
 ]

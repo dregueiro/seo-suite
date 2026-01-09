@@ -10,6 +10,8 @@ from django.contrib import messages
 from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse
 from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
 
 from projects.models import Project
 from integrations.models import IntegrationStatus
@@ -19,6 +21,12 @@ from keyword_research.models import KeywordMetric
 from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
+
+
+@login_required
+def dashboard(request):
+    data = {"title": "SEOSuite", "subTitle": "Dashboard"}
+    return render(request, "seo/dashboard.html", data)
 
 
 def _mock_allowed() -> bool:

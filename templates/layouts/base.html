@@ -1,67 +1,54 @@
 {% load static %}
-<!doctype html>
-<html lang="es">
+<!DOCTYPE html>
+<html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <title>{% block title %}SEOSuite{% endblock %}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <!-- AdminLTE v4 (local) -->
-    <link rel="stylesheet" href="{% static 'vendor/adminlte4/dist/css/adminlte.min.css' %}">
-
-    <!-- Bootstrap Icons (local) -->
-    <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons/font/bootstrap-icons.min.css' %}">
-
-    {% block extra_css %}{% endblock %}
+    {% include "layouts/partials/head.html" %}
   </head>
 
-  <!-- AdminLTE v4 body classes (como el ejemplo) -->
-  <body class="layout-fixed sidebar-expand-lg sidebar-open bg-body-tertiary">
-    <div class="app-wrapper">
-      {% include "layouts/navbar.html" %}
-      {% include "layouts/sidebar.html" %}
+  <body data-menu-color="light" data-sidebar="default">
+    <!-- Begin page -->
+    <div id="app-layout">
+      {% include "layouts/partials/topbar.html" %}
+      <div class="app-sidebar-menu">
+        <div class="h-100" data-simplebar>
+          {% include "layouts/partials/sidebar.html" %}
+          <div class="clearfix"></div>
+        </div>
+      </div>
 
-      <main class="app-main">
-        <!-- Content header -->
-        <div class="app-content-header">
+  <!-- ============================================================== -->
+      <!-- Start Page Content here -->
+      <!-- ============================================================== -->
+
+      <div class="content-page">
+        <div class="content">
           <div class="container-fluid">
-            <div class="row">
-              <div class="col-sm-6">
-                <h3 class="mb-0">{% block page_title %}SEOSuite{% endblock %}</h3>
-              </div>
-              <div class="col-sm-6">
-                {% block breadcrumbs %}{% endblock %}
-              </div>
-            </div>
+            {% block content %} {% endblock %}
           </div>
         </div>
+      </div>
 
-        <!-- Main content -->
-        <div class="app-content">
-          <div class="container-fluid">
-            {% if messages %}
-              {% for m in messages %}
-                <div class="alert alert-info mb-3" role="alert">{{ m }}</div>
-              {% endfor %}
-            {% endif %}
+      <!-- Footer Start -->
+      {% include "layouts/partials/footer.html" %}
+      <!-- end Footer -->
 
-            {% block content %}{% endblock %}
-          </div>
-        </div>
-      </main>
-
-      <footer class="app-footer">
-        <div class="float-end d-none d-sm-inline">Release 1</div>
-        <strong>SEOSuite</strong>
-      </footer>
     </div>
 
-    <!-- Bootstrap (local) -->
-    <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <!-- Vendor -->
 
-    <!-- AdminLTE (local) -->
-    <script src="{% static 'vendor/adminlte4/dist/js/adminlte.min.js' %}"></script>
+    <script src="{% static 'vendor/hando/dist/assets/libs/jquery/jquery.min.js' %} "></script>
+    <script src="{% static 'vendor/hando/dist/assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'vendor/hando/dist/assets/libs/simplebar/simplebar.min.js' %}"></script>
+    <script src="{% static 'vendor/hando/dist/assets/libs/node-waves/waves.min.js' %}"></script>
+    <script src="{% static 'vendor/hando/dist/assets/libs/waypoints/lib/jquery.waypoints.min.js' %}"></script>
+    <script src="{% static 'vendor/hando/dist/assets/libs/jquery.counterup/jquery.counterup.min.js' %}"></script>
+    <script src="{% static 'vendor/hando/dist/assets/libs/feather-icons/feather.min.js' %}"></script>
 
-    {% block extra_js %}{% endblock %}
+    <!-- App js-->
+    <script src="{% static 'vendor/hando/dist/assets/js/app.js' %}"></script>
+    {% block vendor %} {%endblock %}
+
   </body>
+
+
 </html>
