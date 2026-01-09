@@ -1,0 +1,131 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="text-muted small">Run</div>
+            <div class="fw-semibold">{{ run.id }}</div>
+          </div>
+
+          <div class="text-end">
+            <span class="badge {% if run.status == 'success' %}bg-success{% elif run.status == 'failed' %}bg-danger{% else %}bg-secondary{% endif %}">
+              {{ run.status|upper }}
+            </span>
+            <div class="text-muted small mt-1">{{ run.created_at }}</div>
+          </div>
+        </div>
+
+        <hr class="my-3"/>
+
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="text-muted small">Provider</div>
+            <div class="fw-semibold">{{ run.provider }}</div>
+          </div>
+          <div class="col-md-8">
+            <div class="text-muted small">Kind</div>
+            <div class="fw-semibold">{{ run.kind }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inputs / Outputs -->
+    <div class="card">
+      <div class="card-header">
+        <h6 class="mb-0">Inputs / Outputs</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-3">
+          <div class="text-muted small mb-1">Inputs</div>
+          <pre class="mb-0" style="white-space:pre-wrap;">{{ inputs_pretty }}</pre>
+        </div>
+        <div>
+          <div class="text-muted small mb-1">Outputs</div>
+          <pre class="mb-0" style="white-space:pre-wrap;">{{ outputs_pretty }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Provider responses -->
+    <div class="card">
+      <div class="card-header">
+        <h6 class="mb-0">Provider responses</h6>
+      </div>
+      <div class="card-body">
+        {% if responses %}
+          <div class="accordion" id="resp-accordion">
+            {% for r in responses %}
+              <div class="accordion-item">
+                <h2 class="accordion-header" id="h{{ forloop.counter }}">
+                  <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" type="button"
+                          data-bs-toggle="collapse" data-bs-target="#c{{ forloop.counter }}"
+                          aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
+                          aria-controls="c{{ forloop.counter }}">
+                    <span class="me-2 badge bg-light text-dark">{{ r.http_status|default:"-" }}</span>
+                    <span class="me-2">{{ r.endpoint|default:"-" }}</span>
+                    <span class="text-muted small ms-auto">{{ r.received_at|default:"" }}</span>
+                  </button>
+                </h2>
+                <div id="c{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                     aria-labelledby="h{{ forloop.counter }}" data-bs-parent="#resp-accordion">
+                  <div class="accordion-body">
+                    <div class="text-muted small mb-1">Request</div>
+                    <pre style="white-space:pre-wrap;">{{ r.request_body|default:"" }}</pre>
+                    <div class="text-muted small mb-1">Response</div>
+                    <pre class="mb-0" style="white-space:pre-wrap;">{{ r.response_body|default:"" }}</pre>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-muted">No hay ProviderResponses para este Run.</div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right column -->
+  <div class="col-lg-4">
+
+    <div class="card">
+      <div class="card-header">
+        <h6 class="mb-0">Artifacts</h6>
+      </div>
+      <div class="card-body">
+        {% if artifacts %}
+          <ul class="list-unstyled mb-0">
+            {% for a in artifacts %}
+              <li class="mb-2">
+                <div class="d-flex align-items-center justify-content-between">
+                  <div>
+                    <div class="fw-semibold">{{ a.name }}</div>
+                    <div class="text-muted small">{{ a.artifact_type }} · {{ a.size_bytes }} bytes</div>
+                  </div>
+                  <a class="btn btn-sm btn-outline-primary" href="/core/artifacts/{{ a.id }}/download/">Download</a>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-muted">No hay artifacts.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <a class="btn btn-sm btn-light w-100" href="/admin/core/run/{{ run.id }}/change/">Ver en admin (debug)</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

@@ -3,6 +3,8 @@ import csv
 import hashlib
 import io
 import os
+import json
+
 from pathlib import Path
 
 from django.conf import settings
@@ -11,7 +13,9 @@ from django.shortcuts import get_object_or_404, render
 from django.http import HttpResponse
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
+from django.apps import apps
+from django.http import Http404
+from django.urls import reverse
 
 from projects.models import Project
 from integrations.models import IntegrationStatus
@@ -23,10 +27,78 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 
 
+
+
+@login_required
+def keyword_metrics(request, project_id: int):
+    project = get_object_or_404(Project, id=project_id)
+
+    # elegimos el run más reciente con métricas (overview/magic/csv import)
+    kinds = [
+        "keyword_research.ads.keyword_overview",
+        "keyword_research.mock.keyword_overview",
+        "keyword_research.ads.keyword_magic",
+        "keyword_research.mock.keyword_magic",
+        "keyword_research.ads.keyword_planner_csv_import",
+    ]
+
+    run_id = (request.GET.get("run_id") or "").strip()
+    run = None
+    if run_id:
+        run = Run.objects.filter(id=run_id, entity_object_id=project.id).first()
+
+    if not run:
+        run = Run.objects.filter(entity_object_id=project.id, kind__in=kinds, status=Run.Status.SUCCESS).order_by("-created_at").first()
+
+    metrics_qs = KeywordMetric.objects.filter(project=project, run=run) if run else KeywordMetric.objects.none()
+
+    total_keywords = metrics_qs.count()
+    total_volume = sum([m.avg_monthly_searches or 0 for m in metrics_qs.only("avg_monthly_searches")])
+    avg_cpc = None
+    cpcs = [m.cpc_micros for m in metrics_qs.only("cpc_micros") if m.cpc_micros]
+    if cpcs:
+        avg_cpc = (sum(cpcs) / len(cpcs)) / 1_000_000
+
+    top10 = list(metrics_qs.order_by("-avg_monthly_searches", "keyword")[:10])
+    chart_labels = [m.keyword for m in top10]
+    chart_values = [m.avg_monthly_searches or 0 for m in top10]
+
+    recent_runs = Run.objects.filter(entity_object_id=project.id, kind__in=kinds).order_by("-created_at")[:20]
+    recent_runs_rows = [(r.id, f"{r.created_at:%Y-%m-%d %H:%M} | {r.status} | {r.kind}") for r in recent_runs]
+
+    ctx = {
+        "title": "Keyword Metrics",
+        "subTitle": project.name,
+        "breadcrumbs": [
+            {"label": "SEO", "url": reverse("seo:dashboard")},
+            {"label": "Projects", "url": reverse("seo:projects_list")},
+            {"label": "Keyword Metrics"},
+        ],
+        "project": project,
+        "run": run,
+        "total_keywords": total_keywords,
+        "total_volume": total_volume,
+        "avg_cpc": avg_cpc,
+        "metrics": metrics_qs.order_by("-avg_monthly_searches", "keyword")[:500],
+        "recent_runs_rows": recent_runs_rows,
+        "chart_labels_json": json.dumps(chart_labels, ensure_ascii=False),
+        "chart_values_json": json.dumps(chart_values, ensure_ascii=False),
+    }
+    return render(request, "seo/keyword_metrics.html", ctx)
+
+
 @login_required
 def dashboard(request):
-    data = {"title": "SEOSuite", "subTitle": "Dashboard"}
-    return render(request, "seo/dashboard.html", data)
+    ctx = {"title":"Dashboard","subTitle":"","breadcrumbs":[{"label":"SEO"},{"label":"Dashboard"}]}
+
+    return render(request, "seo/dashboard.html", {"title": "Dashboard", "subTitle": ""})
+
+
+def _get_model(app_label: str, model_name: str):
+    try:
+        return apps.get_model(app_label, model_name)
+    except LookupError:
+        return None
 
 
 def _mock_allowed() -> bool:
@@ -55,6 +127,32 @@ def _write_artifact(*, run: Run, filename: str, artifact_type: str, content_byte
         size_bytes=len(content_bytes),
     )
 
+from django.urls import reverse
+
+@login_required
+def projects_list(request):
+    ProjectModel = _get_model("projects", "Project")
+    if not ProjectModel:
+        return render(request, "seo/projects_list.html", {
+            "title": "Projects",
+            "subTitle": "",
+            "breadcrumbs": [{"label": "SEO", "url": reverse("seo:dashboard")}, {"label": "Projects"}],
+            "projects": [],
+            "model_missing": True
+        })
+    ctx = {"title":"Projects","subTitle":"","breadcrumbs":[{"label":"SEO","url":reverse("seo:dashboard")},{"label":"Projects"}],}
+
+    projects = ProjectModel.objects.all().order_by("-id")[:200]
+    return render(request, "seo/projects_list.html", {
+        "title": "Projects",
+        "subTitle": "",
+        "breadcrumbs": [{"label": "SEO", "url": reverse("seo:dashboard")}, {"label": "Projects"}],
+        "projects": projects,
+        "model_missing": False
+    })
+
+
+
 
 def project_setup(request, project_id: int):
     project = get_object_or_404(Project, id=project_id)
@@ -70,11 +168,20 @@ def project_setup(request, project_id: int):
     ]
 
     ctx = {
+        "title": "Setup",
+        "subTitle": project.name,
+        "breadcrumbs": [
+            {"label": "SEO", "url": reverse("seo:dashboard")},
+            {"label": "Projects", "url": reverse("seo:projects_list")},
+            {"label": "Setup"},
+        ],
         "project": project,
         "providers": providers,
         "provider_rows": provider_rows,
         "checklist": checklist,
         "mock_ads_enabled": _mock_allowed(),
+        # opcional: ocultar breadcrumb global si querés estilo profile
+        # "hide_breadcrumb": True,
     }
     return render(request, "seo/project_setup.html", ctx)
 
@@ -143,6 +250,45 @@ def keyword_overview(request, project_id: int):
 
     recent_runs_rows = [(r.id, _run_label(r)) for r in recent_runs]
 
+    # ---- UI stats (tipo Semrush) desde metrics del selected_run ----
+    overview = {
+        "volume": None,
+        "cpc": None,  # en USD aprox si tienes micros
+        "competition": None,
+        "source": None,
+        "confidence": None,
+    }
+
+    ideas_variations = []
+    ideas_questions = []
+
+    if selected_run and metrics.exists():
+        # Tomamos la keyword principal si existe en el snapshot, si no usamos la primera
+        main = metrics.filter(keyword__iexact=(keyword or "")).first() or metrics.first()
+
+        if main:
+            overview["volume"] = main.avg_monthly_searches
+            # CPC micros -> USD aproximado (si tu moneda no es USD aún, lo dejamos “aprox”)
+            overview["cpc"] = (main.cpc_micros / 1_000_000) if main.cpc_micros else None
+            overview["competition"] = main.competition_level
+            overview["source"] = main.source
+            overview["confidence"] = main.source_confidence
+
+        # Ideas: heurística barata y trazable
+        q_words = ("how", "what", "why", "when", "where", "who", "cuánto", "cuanto", "qué", "que", "como", "cómo")
+        for m in metrics.order_by("-avg_monthly_searches", "keyword")[:300]:
+            m.cpc = (m.cpc_micros / 1_000_000) if m.cpc_micros else None
+            kw = (m.keyword or "").lower()
+            if any(w in kw.split() for w in q_words) or kw.startswith(("how ", "what ", "why ", "cuando ", "que ", "qué ", "como ", "cómo ")):
+                ideas_questions.append(m)
+            else:
+                ideas_variations.append(m)
+
+        # límites de UI
+        ideas_variations = ideas_variations[:50]
+        ideas_questions = ideas_questions[:50]
+
+
     ctx = {
         "project": project,
         "keyword": keyword,
@@ -154,6 +300,10 @@ def keyword_overview(request, project_id: int):
         "mock_ads_enabled": _mock_allowed(),
         "recent_runs_rows": recent_runs_rows,
         "selected_run_admin_url": selected_run_admin_url,
+        "overview": overview,
+        "ideas_variations": ideas_variations,
+        "ideas_questions": ideas_questions,
+
 
     }
     return render(request, "seo/keyword_overview.html", ctx)
@@ -464,3 +614,63 @@ def keyword_magic_export_csv(request, project_id: int):
     resp = HttpResponse(csv_bytes, content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
     return resp
+
+from django.urls import reverse
+
+@login_required
+def runs_list(request):
+    runs = Run.objects.all().order_by("-created_at")[:500]
+    ctx = {"title":"Runs","subTitle":"Trazabilidad de ejecuciones","breadcrumbs":[{"label":"SEO","url":reverse("seo:dashboard")},{"label":"Runs"}],}
+
+    return render(
+        request,
+        "seo/runs_list.html",
+        {
+            "title": "Runs",
+            "subTitle": "Trazabilidad de ejecuciones",
+            "breadcrumbs": [
+                {"label": "SEO", "url": reverse("seo:dashboard")},
+                {"label": "Runs"},
+            ],
+            "runs": runs,
+        },
+    )
+
+import json
+from django.http import Http404
+
+@login_required
+def run_detail(request, run_id):
+    run = Run.objects.filter(id=run_id).first()
+    if not run:
+        raise Http404("Run not found")
+
+    # ProviderResponse suele estar en core.models.ProviderResponse
+    ProviderResponse = apps.get_model("core", "ProviderResponse")
+    responses = ProviderResponse.objects.filter(run=run).order_by("-received_at", "-id")
+
+    artifacts = RunArtifact.objects.filter(run=run).order_by("-created_at")
+
+    def _pretty(obj):
+        if obj is None:
+            return ""
+        try:
+            return json.dumps(obj, ensure_ascii=False, indent=2, default=str)
+        except Exception:
+            return str(obj)
+
+    ctx = {
+        "title": "Run",
+        "subTitle": f"{run.provider} · {run.status}",
+        "breadcrumbs": [
+            {"label": "SEO", "url": reverse("seo:dashboard")},
+            {"label": "Runs", "url": reverse("seo:runs_list")},
+            {"label": "Run detail"},
+        ],
+        "run": run,
+        "responses": responses,
+        "artifacts": artifacts,
+        "inputs_pretty": _pretty(run.inputs),
+        "outputs_pretty": _pretty(run.outputs),
+    }
+    return render(request, "seo/run_detail.html", ctx)
