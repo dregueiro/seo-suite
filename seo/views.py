@@ -153,7 +153,7 @@ def projects_list(request):
 
 
 
-
+@login_required
 def project_setup(request, project_id: int):
     project = get_object_or_404(Project, id=project_id)
 
@@ -310,11 +310,19 @@ def keyword_overview(request, project_id: int):
 
 
 
+@login_required
 def keyword_magic(request, project_id: int):
     project = get_object_or_404(Project, id=project_id)
 
-    seed = (request.GET.get("q") or "").strip()
+    # Filtros UI (no rompen aunque no se usen todavía)
+    q = (request.GET.get("q") or "").strip()  # seed
+    seed = q
     run_id = (request.GET.get("run_id") or "").strip()
+
+    min_volume = (request.GET.get("min_volume") or "").strip()
+    competition = (request.GET.get("competition") or "").strip()
+    include = (request.GET.get("include") or "").strip()
+    exclude = (request.GET.get("exclude") or "").strip()
 
     magic_kinds = [
         "keyword_research.ads.keyword_magic",
@@ -322,24 +330,22 @@ def keyword_magic(request, project_id: int):
         "keyword_research.ads.keyword_planner_csv_import",
     ]
 
-    # ✅ SIEMPRE definidos
+    # Historial de runs (dropdown)
     recent_runs = (
         Run.objects.filter(entity_object_id=project.id, kind__in=magic_kinds)
         .order_by("-created_at")[:20]
     )
+
     selected_run = None
     artifacts = RunArtifact.objects.none()
     runs = Run.objects.none()
-    metrics = KeywordMetric.objects.none()
+    metrics_qs = KeywordMetric.objects.none()
 
-    # 1) Resolver selected_run por run_id
+    # 1) Resolver run por run_id explícito
     if run_id:
         selected_run = Run.objects.filter(id=run_id, entity_object_id=project.id).first()
-    selected_run_admin_url = None
-    if selected_run:
-        selected_run_admin_url = f"/admin/core/run/{selected_run.id}/change/"
 
-    # 2) Runs por seed (si aplica)
+    # 2) Runs por seed
     if seed:
         base_qs = (
             Run.objects.filter(
@@ -350,52 +356,110 @@ def keyword_magic(request, project_id: int):
             .order_by("-created_at")
         )
         runs = base_qs[:20]
-
         if not selected_run:
             selected_run = base_qs.filter(status=Run.Status.SUCCESS).first() or base_qs.first()
 
-    # 3) Fallback: usa el último run del historial
+    # 3) Fallback: último run del historial
     if not selected_run and recent_runs:
         selected_run = recent_runs[0]
 
-    # 4) Artifacts + métricas del run seleccionado
+    selected_run_admin_url = None
     if selected_run:
+        selected_run_admin_url = f"/admin/core/run/{selected_run.id}/change/"
         artifacts = RunArtifact.objects.filter(run=selected_run).order_by("-created_at")
-        metrics = (
+
+        # dataset base (no más de 200 como venías)
+        metrics_qs = (
             KeywordMetric.objects.filter(project=project, run=selected_run)
-            .order_by("-avg_monthly_searches", "keyword")[:200]
+            .order_by("-avg_monthly_searches", "keyword")
         )
+
+        # Aplicar filtros suaves (baratos, trazables, sin providers)
+        # min_volume
+        if min_volume.isdigit():
+            metrics_qs = metrics_qs.filter(avg_monthly_searches__gte=int(min_volume))
+
+        # competition exact
+        if competition:
+            metrics_qs = metrics_qs.filter(competition_level__iexact=competition)
+
+        # include/exclude sobre keyword
+        if include:
+            metrics_qs = metrics_qs.filter(keyword__icontains=include)
+        if exclude:
+            metrics_qs = metrics_qs.exclude(keyword__icontains=exclude)
+
+        metrics_qs = metrics_qs[:200]
+
     def _run_label(r: Run) -> str:
         inp = r.inputs or {}
-        q = inp.get("seed") or inp.get("keyword") or ""
+        qq = inp.get("seed") or inp.get("keyword") or ""
         created = (r.outputs or {}).get("created_metrics")
         created_txt = f" | metrics:{created}" if created is not None else ""
-        q_txt = f" | q:{q}" if q else ""
+        q_txt = f" | q:{qq}" if qq else ""
         return f"{r.created_at:%Y-%m-%d %H:%M} | {r.status} | {r.kind}{q_txt}{created_txt}"
 
     recent_runs_rows = [(r.id, _run_label(r)) for r in recent_runs]
+
+    # Ads gate (sin asumir campos fijos)
+    ads_status = IntegrationStatus.objects.filter(project=project, provider="ads").first()
+    ads_can_fetch = _integration_is_ok(ads_status)  # si no está, queda False
+
+    # rows para el template nuevo (contract-like)
+    rows = []
+    for m in metrics_qs:
+        rows.append({
+            "keyword": m.keyword,
+            "avg_monthly_searches": m.avg_monthly_searches,
+            "cpc": (m.cpc_micros / 1_000_000) if getattr(m, "cpc_micros", None) else None,
+            "competition_level": m.competition_level,
+            "source": m.source,
+        })
 
     return render(
         request,
         "seo/keyword_magic.html",
         {
+            # Layout/breadcrumb si lo querés (opcional). Si tu base lo usa, esto ayuda.
+            "title": "Keyword Magic",
+            "subTitle": project.name,
+
             "project": project,
-            "seed": seed,
-            "keyword": seed,            # útil si el template reutiliza {{ keyword }}
-            "runs": runs,
+
+            # 🔥 variables esperadas por el template “analytics”
+            "rows": rows,
+            "q": q,
+            "min_volume": min_volume,
+            "competition": competition,
+            "include": include,
+            "exclude": exclude,
+            "run": selected_run,          # el template nuevo usa "run"
             "recent_runs": recent_runs,
+            "artifacts": [
+                # compatibilidad: tu template nuevo usa a.name/a.download_url
+                # si tu RunArtifact no tiene download_url, no rompe porque lo pintamos abajo seguro:
+                {
+                    "name": a.name,
+                    "download_url": getattr(a, "download_url", None) or (f"/admin/core/runartifact/{a.id}/change/"),
+                }
+                for a in artifacts
+            ],
+            "ads_can_fetch": ads_can_fetch,
+            "has_export_csv": True,       # ya existe keyword_magic_export_csv
+
+            # ✅ retrocompatibilidad con tu template viejo
+            "seed": seed,
+            "keyword": seed,
+            "runs": runs,
             "selected_run": selected_run,
-            "artifacts": artifacts,
-            "metrics": metrics,
+            "metrics": metrics_qs,
             "mock_ads_enabled": _mock_allowed(),
             "recent_runs_rows": recent_runs_rows,
             "selected_run_admin_url": selected_run_admin_url,
-
         },
     )
 
-
-
+@login_required
 def keyword_overview_export_pdf(request, project_id: int):
     project = get_object_or_404(Project, id=project_id)
 
@@ -483,7 +547,7 @@ def keyword_overview_export_pdf(request, project_id: int):
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
     return resp
 
-
+@login_required
 def keyword_overview_export_csv(request, project_id: int):
     project = get_object_or_404(Project, id=project_id)
 
@@ -549,7 +613,7 @@ def keyword_overview_export_csv(request, project_id: int):
     resp["Content-Disposition"] = f'attachment; filename="{filename}"'
     return resp
 
-
+@login_required
 def keyword_magic_export_csv(request, project_id: int):
     project = get_object_or_404(Project, id=project_id)
 
