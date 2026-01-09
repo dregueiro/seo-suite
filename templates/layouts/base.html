@@ -6,9 +6,9 @@
   </head>
 
   <body data-menu-color="light" data-sidebar="default">
-    <!-- Begin page -->
     <div id="app-layout">
       {% include "layouts/partials/topbar.html" %}
+
       <div class="app-sidebar-menu">
         <div class="h-100" data-simplebar>
           {% include "layouts/partials/sidebar.html" %}
@@ -16,27 +16,25 @@
         </div>
       </div>
 
-  <!-- ============================================================== -->
-      <!-- Start Page Content here -->
-      <!-- ============================================================== -->
-
       <div class="content-page">
         <div class="content">
           <div class="container-fluid">
-            {% block content %} {% endblock %}
+            {% include "layouts/partials/messages.html" %}
+            {% if not hide_breadcrumb %}
+              {% include "layouts/partials/breadcrumb.html" %}
+            {% endif %}
+
+            {% include "layouts/partials/breadcrumb.html" %}
+            {% block content %}{% endblock %}
           </div>
         </div>
       </div>
 
-      <!-- Footer Start -->
       {% include "layouts/partials/footer.html" %}
-      <!-- end Footer -->
-
     </div>
 
-    <!-- Vendor -->
-
-    <script src="{% static 'vendor/hando/dist/assets/libs/jquery/jquery.min.js' %} "></script>
+    <!-- Vendor JS -->
+    <script src="{% static 'vendor/hando/dist/assets/libs/jquery/jquery.min.js' %}"></script>
     <script src="{% static 'vendor/hando/dist/assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'vendor/hando/dist/assets/libs/simplebar/simplebar.min.js' %}"></script>
     <script src="{% static 'vendor/hando/dist/assets/libs/node-waves/waves.min.js' %}"></script>
@@ -44,11 +42,49 @@
     <script src="{% static 'vendor/hando/dist/assets/libs/jquery.counterup/jquery.counterup.min.js' %}"></script>
     <script src="{% static 'vendor/hando/dist/assets/libs/feather-icons/feather.min.js' %}"></script>
 
-    <!-- App js-->
+    <!-- Simple-DataTables JS -->
+    <script src="{% static 'vendor/hando/dist/assets/libs/simple-datatables/umd/simple-datatables.js' %}"></script>
+
+    <!-- Page vendor JS (opcionales por página) -->
+    {% block vendor %}{% endblock %}
+
+    <!-- App JS -->
     <script src="{% static 'vendor/hando/dist/assets/js/app.js' %}"></script>
-    {% block vendor %} {%endblock %}
+
+    <!-- Page JS -->
+    {% block extra_js %}{% endblock %}
+    <script>
+      (function () {
+        const container = document.getElementById("flash-messages");
+        if (!container) return;
+
+        const alerts = container.querySelectorAll("[data-autodismiss='true']");
+        alerts.forEach((el) => {
+          const ms = parseInt(el.getAttribute("data-autodismiss-ms") || "5000", 10);
+          if (!ms) return;
+
+          setTimeout(() => {
+            // Si el usuario ya lo cerró, no hacemos nada
+            if (!document.body.contains(el)) return;
+
+            // Bootstrap 5: si existe Alert plugin, úsalo
+            if (window.bootstrap && window.bootstrap.Alert) {
+              try {
+                const inst = window.bootstrap.Alert.getOrCreateInstance(el);
+                inst.close();
+                return;
+              } catch (e) {}
+            }
+
+            // Fallback: fade manual
+            el.style.transition = "opacity 300ms ease";
+            el.style.opacity = "0";
+            setTimeout(() => el.remove(), 320);
+          }, ms);
+        });
+      })();
+    </script>
+
 
   </body>
-
-
 </html>
