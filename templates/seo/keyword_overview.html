@@ -1,19 +1,263 @@
-{% extends 'layouts/base.html' %}
-
-
-{% block title %}Keyword Overview{% endblock %}
-{% block page_title %}Keyword Overview{% endblock %}
+{% extends "layouts/base.html" %}
 
 {% block content %}
-  <div class="card">
-    <div class="card-body">
-      <p>Contenido de Keyword Overview aquí...</p>
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+    <div class="d-flex gap-2">
+      {% if selected_run %}
+        <a class="btn btn-sm btn-outline-secondary"
+          href="{% url 'seo:run_detail' selected_run.id %}">
+          Ver Run
+        </a>
+
+        {% if selected_run_admin_url %}
+          <a class="btn btn-sm btn-outline-secondary" href="{{ selected_run_admin_url }}">
+            Abrir en Admin
+          </a>
+        {% endif %}
+
+        <a class="btn btn-sm btn-outline-success"
+          href="{% url 'seo:keyword_overview_export_csv' project.id %}?run_id={{ selected_run.id }}">
+          Export CSV
+        </a>
+
+        <a class="btn btn-sm btn-outline-success"
+          href="{% url 'seo:keyword_overview_export_pdf' project.id %}?run_id={{ selected_run.id }}">
+          Export PDF
+        </a>
+      {% endif %}
+    </div>
+
+</div>
+
+<!-- Barra de filtros (placeholder UI, sin lógica aún) -->
+<div class="card mb-3">
+  <div class="card-body">
+    <form class="row g-2 align-items-center" method="get" action="">
+      <div class="col-md-4">
+        <input class="form-control" name="q" value="{{ keyword }}" placeholder="Introduce keyword…">
+      </div>
+
+      <div class="col-md-2">
+        <select class="form-select" disabled>
+          <option>Estados Unidos</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <select class="form-select" disabled>
+          <option>Escritorio</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <select class="form-select" disabled>
+          <option>USD</option>
+        </select>
+      </div>
+
+      <div class="col-md-2 d-flex gap-2">
+        <button class="btn btn-primary w-100" type="submit">Ver</button>
+      </div>
+    </form>
+
+    <div class="mt-2 d-flex flex-wrap gap-2">
+      <!-- Fetch Ads / Mock (manteniendo tu gate actual) -->
+      <form method="post" action="/kw/projects/{{ project.id }}/overview/fetch/" class="d-flex gap-2 align-items-center">
+        {% csrf_token %}
+        <input type="hidden" name="keyword" value="{{ keyword }}">
+        <button class="btn btn-sm btn-outline-primary" type="submit">Actualizar métricas (Ads)</button>
+      </form>
+
+      {% if mock_ads_enabled %}
+        <span class="badge bg-warning text-dark">Mock ON (DEV)</span>
+      {% else %}
+        <span class="badge bg-light text-dark">Mock OFF</span>
+      {% endif %}
+
+      <!-- selector de run (histórico) -->
+      <form class="ms-auto d-flex gap-2" method="get" action="">
+        <input type="hidden" name="q" value="{{ keyword }}">
+        <select class="form-select form-select-sm" name="run_id" style="min-width:340px;">
+          <option value="">Últimos runs…</option>
+          {% for rid, label in recent_runs_rows %}
+            <option value="{{ rid }}" {% if selected_run and rid == selected_run.id %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <button class="btn btn-sm btn-light" type="submit">Cargar</button>
+      </form>
+    </div>
+
+    {% if selected_run and selected_run.status == "failed" %}
+      <div class="alert alert-danger mt-3 mb-0">
+        Run failed: {{ selected_run.error_message|default:"(sin detalle)" }}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- KPIs (cards) -->
+<div class="row g-3 mb-3">
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-muted">Volumen</div>
+        <div class="fs-3 fw-semibold">
+          {{ overview.volume|default:"n/d" }}
+        </div>
+      </div>
     </div>
   </div>
+
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-muted">CPC</div>
+        <div class="fs-3 fw-semibold">
+          {% if overview.cpc is not None %}${{ overview.cpc|floatformat:2 }}{% else %}n/d{% endif %}
+        </div>
+        <div class="text-muted small">aprox (desde micros)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-muted">Competencia</div>
+        <div class="fs-3 fw-semibold">
+          {{ overview.competition|default:"n/d" }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-muted">Fuente / Confianza</div>
+        <div class="fs-6 fw-semibold">
+          {{ overview.source|default:"n/d" }}
+        </div>
+        <div class="text-muted">
+          {{ overview.confidence|default:"n/d" }}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ideas + tabla grande (tipo captura 2) -->
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <h5 class="mb-0">Ideas de palabras clave</h5>
+  </div>
+
+  <div class="card-body">
+    <ul class="nav nav-tabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-var" data-bs-toggle="tab" data-bs-target="#pane-var" type="button" role="tab">
+          Variaciones ({{ ideas_variations|length }})
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-q" data-bs-toggle="tab" data-bs-target="#pane-q" type="button" role="tab">
+          Preguntas ({{ ideas_questions|length }})
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content pt-3">
+      <div class="tab-pane fade show active" id="pane-var" role="tabpanel">
+        {% if ideas_variations %}
+          <div class="table-responsive">
+            <table id="kw-variations" class="table table-striped w-100">
+              <thead>
+                <tr>
+                  <th>Keyword</th>
+                  <th>Volumen</th>
+                  <th>CPC</th>
+                  <th>Competencia</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for m in ideas_variations %}
+                  <tr>
+                    <td>{{ m.keyword }}</td>
+                    <td>{{ m.avg_monthly_searches|default:"" }}</td>
+                    <td>
+                      {% if m.cpc is not None %}
+                        ${{ m.cpc|floatformat:2 }}
+                      {% else %}
+                        n/d
+                      {% endif %}
+                  </td>
+
+                    <td>{{ m.competition_level|default:"" }}</td>
+                    <td>{{ m.source|default:"" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-muted">No hay ideas (variaciones) para mostrar.</div>
+        {% endif %}
+      </div>
+
+      <div class="tab-pane fade" id="pane-q" role="tabpanel">
+        {% if ideas_questions %}
+          <div class="table-responsive">
+            <table id="kw-questions" class="table table-striped w-100">
+              <thead>
+                <tr>
+                  <th>Keyword</th>
+                  <th>Volumen</th>
+                  <th>CPC</th>
+                  <th>Competencia</th>
+                  <th>Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for m in ideas_questions %}
+                  <tr>
+                    <td>{{ m.keyword }}</td>
+                    <td>{{ m.avg_monthly_searches|default:"" }}</td>
+                    <td>{% if m.cpc_micros %}${{ m.cpc_micros|floatformat:0 }} micros{% else %}{% endif %}</td>
+                    <td>{{ m.competition_level|default:"" }}</td>
+                    <td>{{ m.source|default:"" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-muted">No hay ideas (preguntas) para mostrar.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  console.log("JS de esta página");
+(function () {
+  function initTable(id) {
+    const el = document.getElementById(id);
+    if (!el || !window.simpleDatatables) return;
+    new simpleDatatables.DataTable(el, {
+      perPage: 25,
+      perPageSelect: [10, 25, 50, 100],
+      searchable: true,
+      fixedHeight: true
+    });
+  }
+
+  initTable("kw-variations");
+  initTable("kw-questions");
+})();
 </script>
 {% endblock %}
