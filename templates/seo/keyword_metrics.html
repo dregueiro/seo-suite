@@ -1,0 +1,161 @@
+{% extends "layouts/base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+  <div>
+    <h4 class="mb-0">Keyword Metrics</h4>
+    <div class="text-muted">Proyecto: {{ project.name }}</div>
+  </div>
+
+  <form class="d-flex gap-2" method="get">
+    <select class="form-select form-select-sm" name="run_id" style="min-width:340px;">
+      <option value="">Últimos runs…</option>
+      {% for rid, label in recent_runs_rows %}
+        <option value="{{ rid }}" {% if run and rid == run.id %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-sm btn-light" type="submit">Cargar</button>
+  </form>
+</div>
+
+<!-- KPI cards -->
+<div class="row g-3 mb-3">
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-muted">Keywords</div>
+        <div class="fs-3 fw-semibold">{{ total_keywords }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-muted">Volumen total</div>
+        <div class="fs-3 fw-semibold">{{ total_volume }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-muted">CPC promedio</div>
+        <div class="fs-3 fw-semibold">
+          {% if avg_cpc is not None %}${{ avg_cpc|floatformat:2 }}{% else %}n/d{% endif %}
+        </div>
+        <div class="text-muted small">aprox (desde micros)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-muted">Run</div>
+        <div class="fw-semibold">{% if run %}{{ run.id }}{% else %}n/d{% endif %}</div>
+        <div class="text-muted small">{% if run %}{{ run.created_at }}{% endif %}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Chart -->
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h6 class="mb-0">Top 10 por volumen</h6>
+      </div>
+      <div class="card-body">
+        <div id="kw-top10-chart" style="height: 320px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h6 class="mb-0">Keywords (Top 500)</h6>
+        <a class="btn btn-sm btn-light" href="/admin/keyword_research/keywordmetric/">Ver en admin</a>
+      </div>
+
+      <div class="card-body">
+        <div class="table-responsive">
+          <table id="kw-metrics-table" class="table table-striped w-100">
+            <thead>
+              <tr>
+                <th>Keyword</th>
+                <th>Volumen</th>
+                <th>CPC</th>
+                <th>Competencia</th>
+                <th>Source</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in metrics %}
+                <tr>
+                  <td>{{ m.keyword }}</td>
+                  <td>{{ m.avg_monthly_searches|default:"" }}</td>
+                  <td>
+                    {% if m.cpc_micros %}
+                      ${{ m.cpc_micros|floatformat:0 }} micros
+                    {% else %}
+                      n/d
+                    {% endif %}
+                  </td>
+                  <td>{{ m.competition_level|default:"" }}</td>
+                  <td>{{ m.source|default:"" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block vendor %}
+<script src="{% static 'vendor/hando/dist/assets/libs/apexcharts/apexcharts.min.js' %}"></script>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  // datatable
+  const tableEl = document.getElementById("kw-metrics-table");
+  if (tableEl && window.simpleDatatables) {
+    new simpleDatatables.DataTable(tableEl, {
+      perPage: 25,
+      perPageSelect: [10,25,50,100],
+      searchable: true,
+      fixedHeight: true,
+    });
+  }
+
+  // chart
+  const labels = {{ chart_labels_json|safe }};
+  const values = {{ chart_values_json|safe }};
+
+  const el = document.querySelector("#kw-top10-chart");
+  if (!el || !window.ApexCharts) return;
+
+  const options = {
+    chart: { type: "bar", height: 320, toolbar: { show: false } },
+    series: [{ name: "Volumen", data: values }],
+    xaxis: { categories: labels },
+    dataLabels: { enabled: false },
+  };
+
+  new ApexCharts(el, options).render();
+})();
+</script>
+{% endblock %}

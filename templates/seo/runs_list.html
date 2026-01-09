@@ -1,0 +1,101 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+
+<div class="d-flex gap-2 mb-2">
+  <button id="btn-copy" class="btn btn-sm btn-light">Copy</button>
+  <button id="btn-csv" class="btn btn-sm btn-light">CSV</button>
+  <button id="btn-print" class="btn btn-sm btn-light">Print</button>
+
+  <a class="btn btn-sm btn-outline-secondary ms-auto" href="/admin/core/run/">Admin Runs</a>
+</div>
+
+
+<div class="card">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table id="runs-table" class="table table-striped w-100">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Kind</th>
+            <th>Status</th>
+            <th>Provider</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in runs %}
+            <tr>
+              <td><a href="{% url 'seo:run_detail' r.id %}">{{ r.id }}</a></td>
+
+              <td>{{ r.kind|default:"-" }}</td>
+              <td>{{ r.status|default:"-" }}</td>
+              <td>{{ r.provider|default:"-" }}</td>
+              <td>{{ r.created_at|default:"-" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const tableEl = document.querySelector("#runs-table");
+  if (!tableEl || !window.simpleDatatables) return;
+
+  new simpleDatatables.DataTable(tableEl, {
+    perPage: 25,
+    perPageSelect: [10, 25, 50, 100],
+    searchable: true,
+    fixedHeight: true,
+  });
+
+  function tableToTSV() {
+    const rows = [];
+    const trs = tableEl.querySelectorAll("tr");
+    trs.forEach(tr => {
+      const cells = Array.from(tr.querySelectorAll("th,td")).map(td => {
+        const text = (td.innerText || "").replace(/\s+/g, " ").trim();
+        return text.replaceAll("\t", " ").replaceAll("\n", " ");
+      });
+      rows.push(cells.join("\t"));
+    });
+    return rows.join("\n");
+  }
+
+  function downloadCSV(filename) {
+    const rows = [];
+    const trs = tableEl.querySelectorAll("tr");
+    trs.forEach(tr => {
+      const cells = Array.from(tr.querySelectorAll("th,td")).map(td => {
+        const text = (td.innerText || "").replace(/\s+/g, " ").trim();
+        return '"' + text.replaceAll('"', '""') + '"';
+      });
+      rows.push(cells.join(","));
+    });
+    const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  document.querySelector("#btn-copy")?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(tableToTSV());
+    } catch (e) {
+      alert("Clipboard no disponible (HTTP).");
+    }
+  });
+
+  document.querySelector("#btn-csv")?.addEventListener("click", () => downloadCSV("runs.csv"));
+  document.querySelector("#btn-print")?.addEventListener("click", () => window.print());
+})();
+</script>
+{% endblock %}

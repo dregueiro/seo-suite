@@ -1,0 +1,67 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+
+<div class="d-flex gap-2 mb-2">
+  <a class="btn btn-sm btn-outline-secondary ms-auto" href="/admin/projects/project/">Admin Projects</a>
+</div>
+
+{% if model_missing %}
+  <div class="alert alert-warning">
+    No se encontró el modelo <code>projects.Project</code>.
+  </div>
+{% endif %}
+
+<div class="card">
+  <div class="card-body">
+    <div class="table-responsive">
+      <table id="projects-table" class="table table-striped w-100">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>GSC</th>
+            <th>GA4</th>
+            <th>Ads</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in projects %}
+            <tr>
+              <td>{{ p.id }}</td>
+              <td>{{ p.name|default:"(sin nombre)" }}</td>
+              <td>{{ p.gsc_property|default:"-" }}</td>
+              <td>{{ p.ga4_property_id|default:"-" }}</td>
+              <td>{{ p.ads_customer_id|default:"-" }}</td>
+              <td>
+                <a class="btn btn-sm btn-light" href="{% url 'seo:project_setup' p.id %}">Setup</a>
+                <a class="btn btn-sm btn-outline-primary" href="{% url 'seo:keyword_metrics' p.id %}">Metrics</a>
+
+               {#  <a class="btn btn-sm btn-outline-primary" href="{% url 'seo:keyword_overview' p.id %}">Overview</a> #}
+               {#  <a class="btn btn-sm btn-outline-primary" href="{% url 'seo:keyword_magic' p.id %}">Magic</a> #}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const tableEl = document.querySelector("#projects-table");
+  if (!tableEl || !window.simpleDatatables) return;
+
+  new simpleDatatables.DataTable(tableEl, {
+    perPage: 25,
+    perPageSelect: [10, 25, 50, 100],
+    searchable: true,
+    fixedHeight: true,
+  });
+})();
+</script>
+{% endblock %}
