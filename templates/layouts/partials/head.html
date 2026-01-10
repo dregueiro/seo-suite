@@ -2,14 +2,22 @@
 
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>{{ title|default:"SEOSuite" }} | SEOSuite</title>
 
-<link rel="shortcut icon" href="{% static 'images/favicon.ico' %}">
 
-{# Bootstrap + icon fonts + app css (ajusta nombres según tus archivos reales) #}
-<link href="{% static 'vendor/hando/dist/assets/css/app.min.csscss/bootstrap.min.css' %}" rel="stylesheet">
-<link href="{% static 'vendor/hando/dist/assets/css/materialdesignicons.min.css' %}" rel="stylesheet">
+<link rel="shortcut icon" href="{% static 'vendor/hando/dist/assets/images/favicon.ico' %}">
+
+{# DataTables.net (Bootstrap 5) #}
+<link href="{% static 'vendor/hando/dist/assets/libs/datatables.net-bs5/css/dataTables.bootstrap5.min.css' %}" rel="stylesheet">
+<link href="{% static 'vendor/hando/dist/assets/libs/datatables.net-responsive-bs5/css/responsive.bootstrap5.min.css' %}" rel="stylesheet">
+<link href="{% static 'vendor/hando/dist/assets/libs/datatables.net-buttons-bs5/css/buttons.bootstrap5.min.css' %}" rel="stylesheet">
+
+<link href="{% static 'vendor/hando/dist/assets/css/bootstrap.min.css' %}" rel="stylesheet">
+<!--<link href="{% static 'vendor/hando/dist/assets/css/materialdesignicons.min.css' %}" rel="stylesheet">
+<link href="{% static 'vendor/hando/dist/assets/css/custom.css' %}" rel="stylesheet"> -->
 <link href="{% static 'vendor/hando/dist/assets/css/app.min.css' %}" rel="stylesheet">
-<link href="{% static 'vendor/hando/dist/assets/css/custom.css' %}" rel="stylesheet">
 
-<script src={% static 'vendor/hando/dist/assets/js/head.js' %} ></script>
+
+<!-- Head JS (si el template lo usa) -->
+<script src="{% static 'vendor/hando/dist/assets/js/head.js' %}"></script>
+
+{% block extra_css %}{% endblock %}

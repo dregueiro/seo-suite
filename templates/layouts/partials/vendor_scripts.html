@@ -1,3 +1,41 @@
 {% load static %}
-<script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
-<script src="{% static 'js/app.js' %}"></script>
+
+<!-- =========================
+   Vendor Scripts (Hando)
+   ========================= -->
+
+<!-- jQuery (DataTables lo requiere) -->
+<script src="{% static 'vendor/hando/dist/assets/libs/jquery/jquery.min.js' %}"></script>
+
+<!-- Bootstrap Bundle (incluye Popper) -->
+<script src="{% static 'vendor/hando/dist/assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+
+<!-- (Opcional) libs comunes de Hando, si tu layout las usa -->
+<!-- <script src="{% static 'vendor/hando/dist/assets/libs/metismenu/metisMenu.min.js' %}"></script> -->
+<!-- <script src="{% static 'vendor/hando/dist/assets/libs/simplebar/simplebar.min.js' %}"></script> -->
+<!-- <script src="{% static 'vendor/hando/dist/assets/libs/node-waves/waves.min.js' %}"></script> -->
+
+<!-- =========================
+   DataTables.net (core + BS5)
+   ========================= -->
+<script src="{% static 'vendor/hando/dist/assets/libs/datatables.net/js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'vendor/hando/dist/assets/libs/datatables.net-bs5/js/dataTables.bootstrap5.min.js' %}"></script>
+
+<!-- Responsive -->
+<script src="{% static 'vendor/hando/dist/assets/libs/datatables.net-responsive/js/dataTables.responsive.min.js' %}"></script>
+<script src="{% static 'vendor/hando/dist/assets/libs/datatables.net-responsive-bs5/js/responsive.bootstrap5.min.js' %}"></script>
+
+<!-- Buttons (UI) - export html5 requiere jszip/pdfmake, si no están igual sirve para print -->
+<script src="{% static 'vendor/hando/dist/assets/libs/datatables.net-buttons/js/dataTables.buttons.min.js' %}"></script>
+<script src="{% static 'vendor/hando/dist/assets/libs/datatables.net-buttons-bs5/js/buttons.bootstrap5.min.js' %}"></script>
+<script src="{% static 'vendor/hando/dist/assets/libs/datatables.net-buttons/js/buttons.print.min.js' %}"></script>
+<script src="{% static 'vendor/hando/dist/assets/libs/datatables.net-buttons/js/buttons.html5.min.js' %}"></script>
+
+<!-- KeyTable / Select (solo si los vas a usar; no hace daño cargarlos) -->
+<script src="{% static 'vendor/hando/dist/assets/libs/datatables.net-keytable/js/dataTables.keyTable.min.js' %}"></script>
+<script src="{% static 'vendor/hando/dist/assets/libs/datatables.net-keytable-bs5/js/keyTable.bootstrap5.min.js' %}"></script>
+<script src="{% static 'vendor/hando/dist/assets/libs/datatables.net-select/js/dataTables.select.min.js' %}"></script>
+<script src="{% static 'vendor/hando/dist/assets/libs/datatables.net-select-bs5/js/select.bootstrap5.min.js' %}"></script>
+
+<!-- Hando App JS (si existe en tu build) -->
+<script src="{% static 'vendor/hando/dist/assets/js/app.js' %}"></script>

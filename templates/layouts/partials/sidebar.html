@@ -1,99 +1,101 @@
 {% load static %}
 
-<!--- Sidemenu -->
-<div id="sidebar-menu">
-
-  <div class="logo-box">
-    <!-- ✅ arreglé assets/assets -->
-    <a class="logo logo-light" href="{% url 'seo:dashboard' %}">
+<div class="app-menu navbar-menu">
+  <div class="navbar-brand-box">
+    <a href="{% url 'seo:dashboard' %}" class="logo logo-dark">
       <span class="logo-sm">
-        <img src="{% static 'vendor/hando/dist/assets/images/logo-sm.png' %}" alt="logo" height="22">
+        <img src="{% static 'vendor/hando/dist/assets/images/logo-sm.png' %}" alt="" height="22">
       </span>
       <span class="logo-lg">
-        <img src="{% static 'vendor/hando/dist/assets/images/logo-light.png' %}" alt="logo" height="24">
+        <img src="{% static 'vendor/hando/dist/assets/images/logo-dark.png' %}" alt="" height="22">
       </span>
     </a>
 
-    <a class="logo logo-dark" href="{% url 'seo:dashboard' %}">
+    <a href="{% url 'seo:dashboard' %}" class="logo logo-light">
       <span class="logo-sm">
-        <img src="{% static 'vendor/hando/dist/assets/images/logo-sm.png' %}" alt="logo" height="22">
+        <img src="{% static 'vendor/hando/dist/assets/images/logo-sm.png' %}" alt="" height="22">
       </span>
       <span class="logo-lg">
-        <img src="{% static 'vendor/hando/dist/assets/images/logo-dark.png' %}" alt="logo" height="24">
+        <img src="{% static 'vendor/hando/dist/assets/images/logo-light.png' %}" alt="" height="22">
       </span>
     </a>
+
   </div>
 
-  <ul id="side-menu">
-    <li class="menu-title">SEO</li>
-    <li>
-      <a class="tp-link" href="{% url 'seo:dashboard' %}">
-        <i data-feather="home"></i>
-        <span> Dashboard </span>
-      </a>
-    </li>
-    <li>
-      <a class="tp-link" href="{% url 'seo:projects_list' %}">
-        <i data-feather="briefcase"></i>
-        <span> Projects </span>
-      </a>
-    </li>
-    <li>
-      <a class="tp-link" href="{% url 'seo:runs_list' %}">
-        <i data-feather="activity"></i>
-        <span> Runs </span>
-      </a>
-    </li>
+  <div id="scrollbar">
+    <div class="container-fluid">
 
-    <li class="menu-title mt-2">CORE</li>
+      {% with pid=request.resolver_match.kwargs.project_id %}
 
-    <li>
-      <a class="tp-link" href="/admin/">
-        <i data-feather="settings"></i>
-        <span> Provider Responses </span>
-      </a>
-    </li>
-    <li>
-      <a class="tp-link" href="/admin/projects/project/">
-        <i data-feather="folder"></i>
-        <span> Runs artifacts </span>
-      </a>
-    </li>
+      <ul class="navbar-nav" id="navbar-nav">
 
-    <li>
-      <a class="tp-link" href="/admin/core/run/">
-        <i data-feather="list"></i>
-        <span> Runs </span>
-      </a>
-    </li>
-    <li class="menu-title">INTEGRATIONS</li>
-    <li>
-      <a class="tp-link" href="/admin/integrations/integrationstatus/">
-        <i data-feather="shield"></i>
-        <span> Integration Status </span>
-      </a>
-    </li>
-    <li class="menu-title mt-2">Keyword Research</li>
+        <li class="menu-title"><span>General</span></li>
 
-<li>
-  <a class="tp-link" href="{% url 'seo:projects_list' %}">
-    <i data-feather="search"></i>
-    <span> Keyword Overview </span>
-  </a>
-</li>
+        <li class="nav-item">
+          <a class="tp-link nav-link" href="{% url 'seo:dashboard' %}">
+            <i data-feather="home"></i>
+            <span> Dashboard </span>
+          </a>
+        </li>
 
-<li>
-  <a class="tp-link" href="{% url 'seo:projects_list' %}">
-    <i data-feather="grid"></i>
-    <span> Keyword Magic </span>
-  </a>
-</li>
+        <li class="nav-item">
+          <a class="tp-link nav-link" href="{% url 'seo:projects_list' %}">
+            <i data-feather="folder"></i>
+            <span> Proyectos </span>
+          </a>
+        </li>
 
-<li>
-  <a class="tp-link" href="/admin/keyword_research/keywordmetric/">
-    <i data-feather="bar-chart-2"></i>
-    <span> Keyword Metrics (Admin) </span>
-  </a>
-</li>
+        <li class="menu-title"><span>Keyword Research</span></li>
 
+        <li class="nav-item">
+          <a class="tp-link nav-link"
+             href="{% if pid %}{% url 'seo:keyword_overview' pid %}{% else %}{% url 'seo:projects_list' %}{% endif %}">
+            <i data-feather="search"></i>
+            <span> Keyword Overview </span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="tp-link nav-link"
+             href="{% if pid %}{% url 'seo:keyword_magic' pid %}{% else %}{% url 'seo:projects_list' %}{% endif %}">
+            <i data-feather="grid"></i>
+            <span> Keyword Magic Tool </span>
+          </a>
+        </li>
+
+        <li class="nav-item">
+          <a class="tp-link nav-link"
+             href="{% if pid %}{% url 'seo:keyword_metrics' pid %}{% else %}{% url 'seo:projects_list' %}{% endif %}">
+            <i data-feather="bar-chart-2"></i>
+            <span> Keyword Metrics </span>
+          </a>
+        </li>
+
+        <li class="menu-title"><span>Integrations</span></li>
+
+        <li class="nav-item">
+          <a class="tp-link nav-link"
+             href="{% if pid %}{% url 'seo:project_setup' pid %}{% else %}{% url 'seo:projects_list' %}{% endif %}">
+            <i data-feather="link"></i>
+            <span> Setup / Test access </span>
+          </a>
+        </li>
+
+        <li class="menu-title"><span>Trazabilidad</span></li>
+
+        <li class="nav-item">
+          <a class="tp-link nav-link" href="{% url 'seo:runs_list' %}">
+            <i data-feather="activity"></i>
+            <span> Runs </span>
+          </a>
+        </li>
+
+      </ul>
+
+      {% endwith %}
+    </div>
+  </div>
+
+  <div class="sidebar-background"></div>
 </div>
+<div class="vertical-overlay"></div>

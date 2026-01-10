@@ -12,7 +12,8 @@
       </div>
     </div>
 
-    <div class="col-auto d-flex gap-2">
+    <div class="col-auto d-flex gap-2 flex-wrap">
+
       <a class="btn btn-light" href="{% url 'seo:keyword_overview' project.id %}">
         Volver a Overview
       </a>
@@ -30,6 +31,37 @@
       <a class="btn btn-outline-secondary" href="{% url 'seo:project_setup' project.id %}">
         Setup
       </a>
+
+      {# ---- Close Variants desde CSV ---- #}
+      <form method="post"
+            action="{% url 'seo:keyword_magic_close_variants_fetch' project.id %}"
+            class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="q" value="{{ q|default:'' }}">
+        <button class="btn btn-outline-primary" type="submit" {% if not q %}disabled{% endif %}>
+          Generar Close Variants (desde CSV)
+        </button>
+      </form>
+
+      {# ---- Import CSV (Keyword Planner UI) ---- #}
+      <form method="post"
+            action="{% url 'keyword_research:kw_import_planner_csv' project.id %}"
+            enctype="multipart/form-data"
+            class="d-flex gap-2 align-items-center">
+        {% csrf_token %}
+
+        <input type="file" name="csv_file" class="form-control form-control-sm" accept=".csv" required>
+
+        {# IMPORTANTÍSIMO: guardar seed/keyword en el run del import #}
+        <input type="hidden" name="keyword" value="">
+        <input type="hidden" name="seed" value="{{ q|default:'' }}">
+        <input type="hidden" name="redirect_to" value="magic">
+
+        <button class="btn btn-sm btn-outline-secondary" type="submit">
+          Import CSV
+        </button>
+      </form>
+
     </div>
   </div>
 
@@ -43,67 +75,72 @@
     </div>
   {% endif %}
 
-    <div class="card mb-3">
-      <div class="card-body">
+  <div class="card mb-3">
+    <div class="card-body">
 
-        <form id="magicForm" method="get" class="row g-2 align-items-end">
+      <form id="magicForm" method="get" class="row g-2 align-items-end">
 
-          <div class="col-12 col-lg-4">
-            <label class="form-label mb-1">Seed</label>
-            <input name="q" value="{{ q|default:seed|default:'' }}" class="form-control" placeholder="ej: marketing automation" />
-          </div>
+        <div class="col-12 col-lg-4">
+          <label class="form-label mb-1">Seed</label>
+          <input name="q" value="{{ q|default:'' }}" class="form-control" placeholder="ej: marketing automation" />
+        </div>
 
-          <div class="col-6 col-lg-2">
-            <label class="form-label mb-1">Min volumen</label>
-            <input name="min_volume" value="{{ min_volume|default:'' }}" class="form-control" type="number" min="0" />
-          </div>
+        <div class="col-6 col-lg-2">
+          <label class="form-label mb-1">Min volumen</label>
+          <input name="min_volume" value="{{ min_volume|default:'' }}" class="form-control" type="number" min="0" />
+        </div>
 
-          <div class="col-6 col-lg-2">
-            <label class="form-label mb-1">Competition</label>
-            <select name="competition" class="form-select">
-              <option value="" {% if not competition %}selected{% endif %}>Todas</option>
-              <option value="LOW" {% if competition == "LOW" %}selected{% endif %}>LOW</option>
-              <option value="MEDIUM" {% if competition == "MEDIUM" %}selected{% endif %}>MEDIUM</option>
-              <option value="HIGH" {% if competition == "HIGH" %}selected{% endif %}>HIGH</option>
-            </select>
-          </div>
+        <div class="col-6 col-lg-2">
+          <label class="form-label mb-1">Competition</label>
+          <select name="competition" class="form-select">
+            <option value="" {% if not competition %}selected{% endif %}>Todas</option>
+            <option value="LOW" {% if competition == "LOW" %}selected{% endif %}>LOW</option>
+            <option value="MEDIUM" {% if competition == "MEDIUM" %}selected{% endif %}>MEDIUM</option>
+            <option value="HIGH" {% if competition == "HIGH" %}selected{% endif %}>HIGH</option>
+          </select>
+        </div>
 
-          <div class="col-6 col-lg-2">
-            <label class="form-label mb-1">Include</label>
-            <input name="include" value="{{ include|default:'' }}" class="form-control" placeholder="palabra" />
-          </div>
+        <div class="col-6 col-lg-2">
+          <label class="form-label mb-1">Include</label>
+          <input name="include" value="{{ include|default:'' }}" class="form-control" placeholder="palabra" />
+        </div>
 
-          <div class="col-6 col-lg-2">
-            <label class="form-label mb-1">Exclude</label>
-            <input name="exclude" value="{{ exclude|default:'' }}" class="form-control" placeholder="palabra" />
-          </div>
+        <div class="col-6 col-lg-2">
+          <label class="form-label mb-1">Exclude</label>
+          <input name="exclude" value="{{ exclude|default:'' }}" class="form-control" placeholder="palabra" />
+        </div>
 
-          <div class="col-12 col-lg-3">
-            <label class="form-label mb-1">Ordenar por</label>
-            <select name="sort" class="form-select">
-              <option value="volume_desc" {% if sort == "volume_desc" or not sort %}selected{% endif %}>Volumen ↓</option>
-              <option value="volume_asc" {% if sort == "volume_asc" %}selected{% endif %}>Volumen ↑</option>
-              <option value="cpc_desc" {% if sort == "cpc_desc" %}selected{% endif %}>CPC ↓</option>
-              <option value="cpc_asc" {% if sort == "cpc_asc" %}selected{% endif %}>CPC ↑</option>
-            </select>
-          </div>
+        <div class="col-12 col-lg-3">
+          <label class="form-label mb-1">Ordenar por</label>
+          <select name="sort" class="form-select">
+            <option value="volume_desc" {% if sort == "volume_desc" or not sort %}selected{% endif %}>Volumen ↓</option>
+            <option value="volume_asc" {% if sort == "volume_asc" %}selected{% endif %}>Volumen ↑</option>
+            <option value="cpc_desc" {% if sort == "cpc_desc" %}selected{% endif %}>CPC ↓</option>
+            <option value="cpc_asc" {% if sort == "cpc_asc" %}selected{% endif %}>CPC ↑</option>
+          </select>
+        </div>
 
-          <div class="col-12 col-lg-9 d-flex gap-2 justify-content-end">
-            <button class="btn btn-primary" type="submit">Aplicar</button>
-            <a class="btn btn-light" href="{% url 'seo:keyword_magic' project.id %}">Limpiar</a>
+        <div class="col-12 col-lg-9 d-flex gap-2 justify-content-end">
+          <button class="btn btn-primary" type="submit">Aplicar</button>
+          <a class="btn btn-light" href="{% url 'seo:keyword_magic' project.id %}">Limpiar</a>
 
-            {% if run %}
-              <a class="btn btn-outline-success ms-2"
-                href="{% url 'seo:keyword_magic_export_csv' project.id %}?run_id={{ run.id }}">
-                Export CSV
-              </a>
-            {% endif %}
-          </div>
+          {% if run %}
+            <a class="btn btn-outline-success ms-2"
+              href="{% url 'seo:keyword_magic_export_csv' project.id %}?run_id={{ run.id }}">
+              Export CSV
+            </a>
+          {% endif %}
+        </div>
 
-        </form>
+        {% if run_id %}
+          <input type="hidden" name="run_id" value="{{ run_id }}">
+        {% endif %}
 
-      </div>
+      </form>
+
     </div>
+  </div>
+
   <div class="row">
 
     <div class="col-12 col-lg-8">
@@ -119,47 +156,31 @@
           <ul class="nav nav-tabs mb-3">
             <li class="nav-item">
               <a class="nav-link active" data-bs-toggle="tab" href="#tab-broad">
-                Broad
-                <span class="badge bg-secondary ms-1">
-                  {{ ideas_broad|length }}
-                </span>
+                Broad <span class="badge bg-secondary ms-1">{{ ideas_broad|length }}</span>
               </a>
             </li>
-
             <li class="nav-item">
               <a class="nav-link" data-bs-toggle="tab" href="#tab-questions">
-                Questions
-                <span class="badge bg-secondary ms-1">
-                  {{ ideas_questions|length }}
-                </span>
+                Questions <span class="badge bg-secondary ms-1">{{ ideas_questions|length }}</span>
               </a>
             </li>
-
             <li class="nav-item">
               <a class="nav-link" data-bs-toggle="tab" href="#tab-related">
-                Related
-                <span class="badge bg-secondary ms-1">
-                  {{ ideas_related|length }}
-                </span>
+                Related <span class="badge bg-secondary ms-1">{{ ideas_related|length }}</span>
               </a>
             </li>
           </ul>
 
-
           <div class="tab-content">
-
             <div class="tab-pane fade show active" id="tab-broad">
               {% include "seo/partials/_magic_table.html" with items=ideas_broad %}
             </div>
-
             <div class="tab-pane fade" id="tab-questions">
               {% include "seo/partials/_magic_table.html" with items=ideas_questions %}
             </div>
-
             <div class="tab-pane fade" id="tab-related">
               {% include "seo/partials/_magic_table.html" with items=ideas_related %}
             </div>
-
           </div>
         </div>
 
@@ -176,22 +197,24 @@
               <option value="">Seleccionar run…</option>
               {% for r in recent_runs %}
                 <option value="{{ r.id }}" {% if run and r.id == run.id %}selected{% endif %}>
-                  {{ r.created_at|date:"M j, Y, P" }} · {{ r.status }} · {{ r.kind|slice:":28" }}
+                  {{ r.created_at|date:"M j, Y, P" }} · {{ r.status }} · {{ r.kind|slice:":40" }}
                 </option>
               {% endfor %}
             </select>
 
-            <input type="hidden" name="q" value="{{ q|default:seed|default:'' }}">
+            {# mantenemos filtros, pero q ya viene corregido por la view #}
+            <input type="hidden" name="q" value="{{ q|default:'' }}">
             <input type="hidden" name="min_volume" value="{{ min_volume|default:'' }}">
             <input type="hidden" name="competition" value="{{ competition|default:'' }}">
             <input type="hidden" name="include" value="{{ include|default:'' }}">
             <input type="hidden" name="exclude" value="{{ exclude|default:'' }}">
             <input type="hidden" name="sort" value="{{ sort|default:'volume_desc' }}">
           </form>
+
           {% if selected_run_admin_url %}
-          <div class="mt-3">
-            <a class="btn btn-sm btn-outline-secondary" href="{{ selected_run_admin_url }}">Abrir en Admin</a>
-          </div>
+            <div class="mt-3">
+              <a class="btn btn-sm btn-outline-secondary" href="{{ selected_run_admin_url }}">Abrir en Admin</a>
+            </div>
           {% endif %}
         </div>
       </div>
@@ -223,4 +246,28 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    if (window.jQuery && jQuery.fn.DataTable) {
+      if (!jQuery.fn.DataTable.isDataTable("#magicTable")) {
+        jQuery("#magicTable").DataTable({
+          pageLength: 25,
+          order: [[1, "desc"]],
+          autoWidth: false
+        });
+      }
+    }
+  });
+
+  document.querySelectorAll('a[data-bs-toggle="tab"]').forEach(function (el) {
+    el.addEventListener("shown.bs.tab", function () {
+      if (window.jQuery && jQuery.fn.DataTable && jQuery.fn.DataTable.isDataTable("#magicTable")) {
+        jQuery("#magicTable").DataTable().columns.adjust();
+      }
+    });
+  });
+</script>
 {% endblock %}

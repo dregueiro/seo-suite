@@ -16,6 +16,11 @@ class IntegrationStatus(models.Model):
         PASS = "pass", "Pass"
         FAIL = "fail", "Fail"
 
+    # ✅ NUEVO: modo Ads (direct-first)
+    class AdsMode(models.TextChoices):
+        DIRECT = "direct", "Direct account"
+        MANAGER = "manager", "Manager (MCC)"
+
     project = models.ForeignKey(Project, related_name="integration_statuses", on_delete=models.CASCADE)
     provider = models.CharField(max_length=20, choices=Provider.choices)
 
@@ -24,6 +29,20 @@ class IntegrationStatus(models.Model):
 
     last_run = models.ForeignKey(Run, null=True, blank=True, on_delete=models.SET_NULL)
     checked_at = models.DateTimeField(null=True, blank=True)
+
+    # ===== Ads specific (opcional, no rompe otros providers) =====
+    ads_mode = models.CharField(
+        max_length=16,
+        choices=AdsMode.choices,
+        default=AdsMode.DIRECT,
+        help_text="Ads access mode. DIRECT uses project.ads_customer_id. MANAGER uses login_customer_id (MCC).",
+    )
+    login_customer_id = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        help_text="Manager (MCC) customer id, required if ads_mode=manager.",
+    )
 
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -36,3 +55,4 @@ class IntegrationStatus(models.Model):
         self.message = message or ""
         self.last_run = run
         self.checked_at = timezone.now()
+        self.save(update_fields=["status", "message", "last_run", "checked_at", "updated_at"])

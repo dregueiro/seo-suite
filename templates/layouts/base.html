@@ -23,8 +23,6 @@
             {% if not hide_breadcrumb %}
               {% include "layouts/partials/breadcrumb.html" %}
             {% endif %}
-
-            {% include "layouts/partials/breadcrumb.html" %}
             {% block content %}{% endblock %}
           </div>
         </div>
@@ -32,26 +30,9 @@
 
       {% include "layouts/partials/footer.html" %}
     </div>
-
-    <!-- Vendor JS -->
-    <script src="{% static 'vendor/hando/dist/assets/libs/jquery/jquery.min.js' %}"></script>
-    <script src="{% static 'vendor/hando/dist/assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-    <script src="{% static 'vendor/hando/dist/assets/libs/simplebar/simplebar.min.js' %}"></script>
-    <script src="{% static 'vendor/hando/dist/assets/libs/node-waves/waves.min.js' %}"></script>
-    <script src="{% static 'vendor/hando/dist/assets/libs/waypoints/lib/jquery.waypoints.min.js' %}"></script>
-    <script src="{% static 'vendor/hando/dist/assets/libs/jquery.counterup/jquery.counterup.min.js' %}"></script>
-    <script src="{% static 'vendor/hando/dist/assets/libs/feather-icons/feather.min.js' %}"></script>
-
-    <!-- Simple-DataTables JS -->
-    <script src="{% static 'vendor/hando/dist/assets/libs/simple-datatables/umd/simple-datatables.js' %}"></script>
-
-    <!-- Page vendor JS (opcionales por página) -->
+    {% include "layouts/partials/vendor_scripts.html" %}
     {% block vendor %}{% endblock %}
 
-    <!-- App JS -->
-    <script src="{% static 'vendor/hando/dist/assets/js/app.js' %}"></script>
-
-    <!-- Page JS -->
     {% block extra_js %}{% endblock %}
     <script>
       (function () {
@@ -84,7 +65,5 @@
         });
       })();
     </script>
-
-
   </body>
 </html>

@@ -2,40 +2,39 @@
 
 {% block content %}
 
-<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-    <div class="d-flex gap-2">
-      {% if selected_run %}
-        <a class="btn btn-sm btn-outline-secondary"
-          href="{% url 'seo:run_detail' selected_run.id %}">
-          Ver Run
-        </a>
+  <div class="d-flex gap-2 align-items-center justify-content-end flex-wrap gap-2 mb-3">
+    {% if selected_run %}
+      <a class="btn btn-outline-secondary"
+        href="{% url 'seo:run_detail' selected_run.id %}">
+        Ver Run
+      </a>
 
-        {% if selected_run_admin_url %}
-          <a class="btn btn-sm btn-outline-secondary" href="{{ selected_run_admin_url }}">
-            Abrir en Admin
-          </a>
-        {% endif %}
-
-        <a class="btn btn-sm btn-outline-success"
-          href="{% url 'seo:keyword_overview_export_csv' project.id %}?run_id={{ selected_run.id }}">
-          Export CSV
-        </a>
-
-        <a class="btn btn-sm btn-outline-success"
-          href="{% url 'seo:keyword_overview_export_pdf' project.id %}?run_id={{ selected_run.id }}">
-          Export PDF
+      {% if selected_run_admin_url %}
+        <a class="btn btn-outline-secondary" href="{{ selected_run_admin_url }}">
+          Abrir en Admin
         </a>
       {% endif %}
-    </div>
 
-</div>
+      <a class="btn btn-outline-success"
+        href="{% url 'seo:keyword_overview_export_csv' project.id %}?run_id={{ selected_run.id }}">
+        Export CSV
+      </a>
+
+      <a class="btn btn-outline-success"
+        href="{% url 'seo:keyword_overview_export_pdf' project.id %}?run_id={{ selected_run.id }}">
+        Export PDF
+      </a>
+    {% endif %}
+  </div>
+
+
 
 <!-- Barra de filtros (placeholder UI, sin lógica aún) -->
 <div class="card mb-3">
   <div class="card-body">
     <form class="row g-2 align-items-center" method="get" action="">
       <div class="col-md-4">
-        <input class="form-control" name="q" value="{{ keyword }}" placeholder="Introduce keyword…">
+        <input class="form-control" name="q" value="{{ keyword|default:'' }}" placeholder="Introduce keyword…">
       </div>
 
       <div class="col-md-2">
@@ -63,11 +62,18 @@
 
     <div class="mt-2 d-flex flex-wrap gap-2">
       <!-- Fetch Ads / Mock (manteniendo tu gate actual) -->
-      <form method="post" action="/kw/projects/{{ project.id }}/overview/fetch/" class="d-flex gap-2 align-items-center">
-        {% csrf_token %}
-        <input type="hidden" name="keyword" value="{{ keyword }}">
-        <button class="btn btn-sm btn-outline-primary" type="submit">Actualizar métricas (Ads)</button>
-      </form>
+    <form method="post" action="{% url 'seo:keyword_overview_fetch' project.id %}" class="d-flex gap-2 align-items-center">
+      {% csrf_token %}
+
+      {# En Overview, el input visible usa name="q". Aseguramos que el fetch lo reciba #}
+      <input type="hidden" name="q" value="{{ keyword|default:'' }}">
+      <input type="hidden" name="keyword" value="{{ keyword|default:'' }}">
+
+      <button class="btn btn-sm btn-outline-primary" type="submit">
+        Actualizar métricas (Ads)
+      </button>
+    </form>
+
 
       {% if mock_ads_enabled %}
         <span class="badge bg-warning text-dark">Mock ON (DEV)</span>
@@ -149,115 +155,86 @@
 
 <!-- Ideas + tabla grande (tipo captura 2) -->
 <div class="card">
-  <div class="card-header d-flex align-items-center justify-content-between">
-    <h5 class="mb-0">Ideas de palabras clave</h5>
+  <div class="card-header d-flex align-items-center">
+    <div class="fw-semibold">Ideas de palabras clave</div>
+    <div class="ms-auto">
+      {% if selected_run %}
+        <a class="btn btn-sm btn-outline-secondary" href="{% url 'seo:run_detail' selected_run.id %}">Ver Run</a>
+      {% endif %}
+    </div>
   </div>
 
   <div class="card-body">
-    <ul class="nav nav-tabs" role="tablist">
+
+    <ul class="nav nav-pills gap-2 mb-3" id="overviewIdeasTabs" role="tablist">
       <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="tab-var" data-bs-toggle="tab" data-bs-target="#pane-var" type="button" role="tab">
-          Variaciones ({{ ideas_variations|length }})
+        <button class="nav-link active" id="variations-tab"
+                data-bs-toggle="pill" data-bs-target="#variations-pane"
+                type="button" role="tab" aria-controls="variations-pane" aria-selected="true">
+          Variations <span class="badge bg-light text-dark ms-1">{{ ideas_variations|length }}</span>
         </button>
       </li>
+
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="tab-q" data-bs-toggle="tab" data-bs-target="#pane-q" type="button" role="tab">
-          Preguntas ({{ ideas_questions|length }})
+        <button class="nav-link" id="questions-tab"
+                data-bs-toggle="pill" data-bs-target="#questions-pane"
+                type="button" role="tab" aria-controls="questions-pane" aria-selected="false">
+          Questions <span class="badge bg-light text-dark ms-1">{{ ideas_questions|length }}</span>
         </button>
       </li>
     </ul>
 
-    <div class="tab-content pt-3">
-      <div class="tab-pane fade show active" id="pane-var" role="tabpanel">
-        {% if ideas_variations %}
-          <div class="table-responsive">
-            <table id="kw-variations" class="table table-striped w-100">
-              <thead>
-                <tr>
-                  <th>Keyword</th>
-                  <th>Volumen</th>
-                  <th>CPC</th>
-                  <th>Competencia</th>
-                  <th>Source</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for m in ideas_variations %}
-                  <tr>
-                    <td>{{ m.keyword }}</td>
-                    <td>{{ m.avg_monthly_searches|default:"" }}</td>
-                    <td>
-                      {% if m.cpc is not None %}
-                        ${{ m.cpc|floatformat:2 }}
-                      {% else %}
-                        n/d
-                      {% endif %}
-                  </td>
-
-                    <td>{{ m.competition_level|default:"" }}</td>
-                    <td>{{ m.source|default:"" }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        {% else %}
-          <div class="text-muted">No hay ideas (variaciones) para mostrar.</div>
-        {% endif %}
+    <div class="tab-content" id="overviewIdeasContent">
+      <div class="tab-pane fade show active" id="variations-pane" role="tabpanel" aria-labelledby="variations-tab">
+        {% include "seo/partials/_overview_table.html" with items=ideas_variations table_id="overviewVariationsTable" %}
       </div>
 
-      <div class="tab-pane fade" id="pane-q" role="tabpanel">
-        {% if ideas_questions %}
-          <div class="table-responsive">
-            <table id="kw-questions" class="table table-striped w-100">
-              <thead>
-                <tr>
-                  <th>Keyword</th>
-                  <th>Volumen</th>
-                  <th>CPC</th>
-                  <th>Competencia</th>
-                  <th>Source</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for m in ideas_questions %}
-                  <tr>
-                    <td>{{ m.keyword }}</td>
-                    <td>{{ m.avg_monthly_searches|default:"" }}</td>
-                    <td>{% if m.cpc_micros %}${{ m.cpc_micros|floatformat:0 }} micros{% else %}{% endif %}</td>
-                    <td>{{ m.competition_level|default:"" }}</td>
-                    <td>{{ m.source|default:"" }}</td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        {% else %}
-          <div class="text-muted">No hay ideas (preguntas) para mostrar.</div>
-        {% endif %}
+      <div class="tab-pane fade" id="questions-pane" role="tabpanel" aria-labelledby="questions-tab">
+        {% include "seo/partials/_overview_table.html" with items=ideas_questions table_id="overviewQuestionsTable" %}
       </div>
     </div>
+
   </div>
 </div>
+
 
 {% endblock %}
 
 {% block extra_js %}
 <script>
-(function () {
-  function initTable(id) {
-    const el = document.getElementById(id);
-    if (!el || !window.simpleDatatables) return;
-    new simpleDatatables.DataTable(el, {
-      perPage: 25,
-      perPageSelect: [10, 25, 50, 100],
-      searchable: true,
-      fixedHeight: true
-    });
-  }
+  document.addEventListener("DOMContentLoaded", function () {
+    if (!(window.jQuery && jQuery.fn && jQuery.fn.DataTable)) return;
 
-  initTable("kw-variations");
-  initTable("kw-questions");
-})();
+    function initDT(selector) {
+      if (!document.querySelector(selector)) return;
+
+      // Si ya existe, destruye limpio y remueve wrapper (clave)
+      if (jQuery.fn.DataTable.isDataTable(selector)) {
+        jQuery(selector).DataTable().destroy();
+      }
+
+      jQuery(selector).DataTable({
+        pageLength: 25,
+        order: [[1, "desc"]],
+        responsive: true,
+        autoWidth: false
+      });
+    }
+
+    // init del tab default
+    initDT("#overviewVariationsTable");
+
+    // al cambiar tabs, reinicia la DT del pane activo
+    const tabs = document.querySelectorAll('#overviewIdeasTabs button[data-bs-toggle="pill"]');
+    tabs.forEach(function(btn) {
+      btn.addEventListener("shown.bs.tab", function (e) {
+        const target = e.target.getAttribute("data-bs-target");
+        if (target === "#variations-pane") initDT("#overviewVariationsTable");
+        if (target === "#questions-pane") initDT("#overviewQuestionsTable");
+      });
+    });
+  });
 </script>
 {% endblock %}
+
+
