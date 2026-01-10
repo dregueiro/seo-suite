@@ -185,14 +185,26 @@ def test_ga4_access(project: Project, use_cache: bool = True) -> Run:
         return run
 
     except ImportError as e:
-        attach_provider_response(run=run, provider=provider, endpoint="import", http_status=None, response_body=_json_text({"error": str(e)}))
+        attach_provider_response(
+            run=run,
+            provider=provider,
+            endpoint="import",
+            http_status=None,
+            response_body=_json_text({"error": str(e)}),
+        )
         mark_failed(run, "Dependencias no instaladas para GA4 Admin", {"hint": "pip install google-auth google-api-python-client"})
         status_obj.mark(IntegrationStatus.Status.FAIL, "Faltan deps (google-auth/google-api-python-client)", run)
         status_obj.save()
         return run
 
     except Exception as e:
-        attach_provider_response(run=run, provider=provider, endpoint="analyticsadmin.properties.get", http_status=None, response_body=_json_text({"error": str(e)}))
+        attach_provider_response(
+            run=run,
+            provider=provider,
+            endpoint="analyticsadmin.properties.get",
+            http_status=None,
+            response_body=_json_text({"error": str(e)}),
+        )
         mark_failed(run, "Error testeando acceso GA4", {"error": str(e)})
         status_obj.mark(IntegrationStatus.Status.FAIL, f"Error: {e}", run)
         status_obj.save()
@@ -206,6 +218,8 @@ def test_ads_access(project: Project, use_cache: bool = True) -> Run:
     provider = Run.Provider.ADS
     kind = "integrations.test_access.ads"
 
+    status_obj = _upsert_status(project, IntegrationStatus.Provider.ADS)
+
     customer_id = _normalize_cid(project.ads_customer_id)
     login_id = _resolve_login_customer_id(project)
     auth_mode = "mcc" if login_id else "direct"
@@ -217,8 +231,6 @@ def test_ads_access(project: Project, use_cache: bool = True) -> Run:
         "auth_mode": auth_mode,
         "login_customer_id": login_id,
     }
-
-    status_obj = _upsert_status(project, IntegrationStatus.Provider.ADS)
 
     if not project.ads_customer_id:
         run = create_run(RunSpec(provider=provider, kind=kind, inputs=inputs, entity=project))
@@ -247,11 +259,10 @@ def test_ads_access(project: Project, use_cache: bool = True) -> Run:
         cfg = os.environ.get("GOOGLE_ADS_CONFIG_PATH") or str(settings.BASE_DIR / "google-ads.yaml")
         client = GoogleAdsClient.load_from_storage(path=cfg)
 
-        # ✅ Aplica MCC si corresponde
         if login_id:
             client.login_customer_id = login_id
 
-        # 1) Auth check (lista accesibles)
+        # 1) Auth check
         customer_service = client.get_service("CustomerService")
         resp = customer_service.list_accessible_customers()
         accessible = [r.replace("customers/", "") for r in resp.resource_names]
@@ -275,14 +286,13 @@ def test_ads_access(project: Project, use_cache: bool = True) -> Run:
             status_obj.save()
             return run
 
-        # 2) Usability check real: GAQL mínima contra el customer del proyecto
+        # 2) GAQL mínima
         ga_service = client.get_service("GoogleAdsService")
         try:
             _ = ga_service.search(customer_id=customer_id, query="SELECT customer.id FROM customer LIMIT 1")
         except Exception as e:
             msg = str(e)
 
-            # Mensajes más útiles / trazables
             if "manager's customer id must be set" in msg or "login-customer-id" in msg:
                 mark_failed(
                     run,
@@ -303,14 +313,53 @@ def test_ads_access(project: Project, use_cache: bool = True) -> Run:
                 status_obj.save()
                 return run
 
-            # fallback genérico
             mark_failed(run, "Error GAQL mínimo (GoogleAdsService.search)", {"error": msg, "auth_mode": auth_mode})
             status_obj.mark(IntegrationStatus.Status.FAIL, f"Error GAQL: {e}", run)
             status_obj.save()
             return run
 
-        mark_success(run, outputs={"ok": True, "ads_customer_id": project.ads_customer_id, "auth_mode": auth_mode, "login_customer_id": login_id})
-        status_obj.mark(IntegrationStatus.Status.PASS, "OK", run)
+        # 3) Capability check: KeywordPlanIdeaService
+        try:
+            kp_service = client.get_service("KeywordPlanIdeaService")
+            req = client.get_type("GenerateKeywordIdeasRequest")
+            req.customer_id = customer_id
+            req.keyword_plan_network = client.enums.KeywordPlanNetworkEnum.GOOGLE_SEARCH
+            req.page_size = 1
+            req.keyword_seed.keywords.append("test")
+            req.language = "languageConstants/1000"
+            req.geo_target_constants.append("geoTargetConstants/2840")
+
+            _ = kp_service.generate_keyword_ideas(request=req)
+
+        except Exception as e:
+            msg = str(e)
+
+            if "DEVELOPER_TOKEN_NOT_APPROVED" in msg or "explorer access" in msg:
+                mark_failed(
+                    run,
+                    "Developer token en Explorer Access: KeywordPlanIdeaService bloqueado (requiere Basic/Standard).",
+                    {"error": msg, "hint": "En el API Center del MCC, aplica a Basic Access y espera aprobación."},
+                )
+                status_obj.mark(IntegrationStatus.Status.FAIL, "Explorer Access (bloquea Keyword Research)", run)
+                status_obj.save()
+                return run
+
+            mark_failed(run, "KeywordPlanIdeaService no disponible", {"error": msg})
+            status_obj.mark(IntegrationStatus.Status.FAIL, f"KeywordPlanIdeaService error: {e}", run)
+            status_obj.save()
+            return run
+
+        mark_success(
+            run,
+            outputs={
+                "ok": True,
+                "ads_customer_id": project.ads_customer_id,
+                "auth_mode": auth_mode,
+                "login_customer_id": login_id,
+                "keyword_plan_idea_service_ok": True,
+            },
+        )
+        status_obj.mark(IntegrationStatus.Status.PASS, "OK (incluye KeywordPlanIdeaService)", run)
         status_obj.save()
         return run
 
