@@ -1,20 +1,17 @@
 # seo/views.py
-import csv
-import hashlib
-import io
-import os
-import json
+import csv,hashlib, io, os, json, mimetypes
 
 from pathlib import Path
 from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, render, redirect
-from django.http import HttpResponse
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.apps import apps
-from django.http import Http404
+from django.http import Http404,FileResponse,HttpResponse
 from django.urls import reverse
+from django.db.models import Q
+from pathlib import Path
 
 from projects.models import Project
 from integrations.models import IntegrationStatus
@@ -27,10 +24,13 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 from django.views.decorators.http import require_POST
 
+
+
 @login_required
 def keyword_metrics(request, project_id: int):
     project = get_object_or_404(Project, id=project_id)
 
+    # elegimos el run más reciente con métricas (overview/magic/csv import)
     kinds = [
         "keyword_research.ads.keyword_overview",
         "keyword_research.mock.keyword_overview",
@@ -41,29 +41,16 @@ def keyword_metrics(request, project_id: int):
 
     run_id = (request.GET.get("run_id") or "").strip()
     run = None
-
-    # 1) Si viene run_id, usarlo
     if run_id:
         run = Run.objects.filter(id=run_id, entity_object_id=project.id).first()
 
-    # 2) Si no hay run_id válido, usar el último SUCCESS de esos kinds
     if not run:
-        run = (
-            Run.objects.filter(
-                entity_object_id=project.id,
-                kind__in=kinds,
-                status=Run.Status.SUCCESS,
-            )
-            .order_by("-created_at")
-            .first()
-        )
+        run = Run.objects.filter(entity_object_id=project.id, kind__in=kinds, status=Run.Status.SUCCESS).order_by("-created_at").first()
 
-    # 3) Query de métricas del run seleccionado
     metrics_qs = KeywordMetric.objects.filter(project=project, run=run) if run else KeywordMetric.objects.none()
 
     total_keywords = metrics_qs.count()
-    total_volume = sum(m.avg_monthly_searches or 0 for m in metrics_qs.only("avg_monthly_searches"))
-
+    total_volume = sum([m.avg_monthly_searches or 0 for m in metrics_qs.only("avg_monthly_searches")])
     avg_cpc = None
     cpcs = [m.cpc_micros for m in metrics_qs.only("cpc_micros") if m.cpc_micros]
     if cpcs:
@@ -73,10 +60,7 @@ def keyword_metrics(request, project_id: int):
     chart_labels = [m.keyword for m in top10]
     chart_values = [m.avg_monthly_searches or 0 for m in top10]
 
-    recent_runs = (
-        Run.objects.filter(entity_object_id=project.id, kind__in=kinds)
-        .order_by("-created_at")[:20]
-    )
+    recent_runs = Run.objects.filter(entity_object_id=project.id, kind__in=kinds).order_by("-created_at")[:20]
     recent_runs_rows = [(r.id, f"{r.created_at:%Y-%m-%d %H:%M} | {r.status} | {r.kind}") for r in recent_runs]
 
     ctx = {
@@ -100,7 +84,6 @@ def keyword_metrics(request, project_id: int):
     return render(request, "seo/keyword_metrics.html", ctx)
 
 
-
 @login_required
 def dashboard(request):
     ctx = {"title":"Dashboard","subTitle":"","breadcrumbs":[{"label":"SEO"},{"label":"Dashboard"}]}
@@ -110,6 +93,7 @@ def dashboard(request):
 def _load_close_variants_items(selected_run: Run):
     """
     Lee el artifact JSON del run close_variants y devuelve lista de dicts.
+    Soporta paths absolutos y relativos.
     """
     if not selected_run:
         return []
@@ -123,7 +107,14 @@ def _load_close_variants_items(selected_run: Run):
         return []
 
     try:
-        raw = Path(art.storage_path).read_text(encoding="utf-8")
+        p = Path(art.storage_path)
+        if not p.is_absolute():
+            p = Path(settings.BASE_DIR) / p
+
+        if not p.exists():
+            return []
+
+        raw = p.read_text(encoding="utf-8")
         payload = json.loads(raw)
         return payload.get("items") or []
     except Exception:
@@ -417,10 +408,11 @@ def keyword_magic(request, project_id: int):
             Run.objects.filter(
                 entity_object_id=project.id,
                 kind__in=magic_kinds,
-                inputs__seed=seed,
             )
+            .filter(Q(inputs__seed=seed) | Q(inputs__keyword=seed))
             .order_by("-created_at")
         )
+
         runs = base_qs[:20]
         if not selected_run:
             selected_run = base_qs.filter(status=Run.Status.SUCCESS).first() or base_qs.first()
@@ -563,8 +555,32 @@ def keyword_magic(request, project_id: int):
     for a in artifacts_qs:
         artifacts.append({
             "name": a.name,
-            "download_url": getattr(a, "download_url", None) or f"/admin/core/runartifact/{a.id}/change/",
+            "download_url": reverse("seo:artifact_download", args=[a.id]),
+
         })
+        # Source runs disponibles para Close Variants (cualquier snapshot que tenga KeywordMetric)
+    source_kinds = [
+        "keyword_research.ads.keyword_planner_csv_import",
+        "keyword_research.ads.keyword_overview",
+        "keyword_research.mock.keyword_overview",
+        "keyword_research.ads.keyword_magic",
+        "keyword_research.mock.keyword_magic",
+    ]
+
+    candidate_source_runs = (
+        Run.objects.filter(entity_object_id=project.id, kind__in=source_kinds, status=Run.Status.SUCCESS)
+        .order_by("-created_at")[:30]
+    )
+
+    source_runs_rows = []
+    for r in candidate_source_runs:
+        # solo mostramos los que realmente tienen métricas (evita selects vacíos)
+        if KeywordMetric.objects.filter(project=project, run=r).exists():
+            inp = r.inputs or {}
+            qtxt = (inp.get("seed") or inp.get("keyword") or "").strip()
+            label = f"{r.created_at:%Y-%m-%d %H:%M} · {r.kind.split('.')[-1]} · {qtxt or '-'}"
+            source_runs_rows.append((str(r.id), label))
+
 
     return render(
         request,
@@ -599,6 +615,8 @@ def keyword_magic(request, project_id: int):
             "mock_ads_enabled": _mock_allowed(),
             "recent_runs_rows": recent_runs_rows,
             "selected_run_admin_url": selected_run_admin_url,
+            "source_runs_rows": source_runs_rows,
+
 
             # tabs
             "ideas_broad": ideas_broad,
@@ -1015,41 +1033,147 @@ def keyword_magic_fetch(request, project_id: int):
 
 @login_required
 @require_POST
+@login_required
+@require_POST
 def keyword_magic_close_variants_fetch(request, project_id: int):
-    if request.method != "POST":
-        raise Http404("POST only")
-
     project = get_object_or_404(Project, id=project_id)
-    seed = (request.POST.get("q") or request.POST.get("seed") or "").strip()
 
+    seed = (request.POST.get("seed") or request.POST.get("q") or "").strip()
+    source_run_id = (request.POST.get("source_run_id") or "").strip()
+
+    # limit
+    limit_raw = (request.POST.get("limit") or "200").strip()
+    try:
+        limit = int(limit_raw)
+    except Exception:
+        limit = 200
+    limit = max(10, min(limit, 1000))
+
+    # min_score + force
+    min_score_raw = (request.POST.get("min_score") or "2").strip()
+    try:
+        min_score_i = int(min_score_raw)
+    except Exception:
+        min_score_i = 2
+    min_score_i = max(1, min(10, min_score_i))
+
+    force = (request.POST.get("force") or "0").strip() == "1"
+
+    # 0) Validación seed
     if not seed:
         messages.error(request, "Falta keyword/seed.")
         return redirect(reverse("seo:keyword_magic", kwargs={"project_id": project.id}))
 
-    # Fuente: último CSV import exitoso (barato, 0 costo)
-    source_run = (
-        Run.objects.filter(
+    # 1) Resolver source_run (si viene explícito)
+    source_run = None
+    if source_run_id:
+        source_run = Run.objects.filter(
+            id=source_run_id,
             entity_object_id=project.id,
-            kind="keyword_research.ads.keyword_planner_csv_import",
             status=Run.Status.SUCCESS,
+        ).first()
+
+    # 2) Fallback: último SUCCESS que realmente tenga KeywordMetric
+    if not source_run:
+        candidate_kinds = [
+            "keyword_research.ads.keyword_planner_csv_import",
+            "keyword_research.ads.keyword_overview",
+            "keyword_research.mock.keyword_overview",
+            "keyword_research.ads.keyword_magic",
+            "keyword_research.mock.keyword_magic",
+        ]
+
+        candidates = (
+            Run.objects.filter(
+                entity_object_id=project.id,
+                kind__in=candidate_kinds,
+                status=Run.Status.SUCCESS,
+            )
+            .order_by("-created_at")[:30]
         )
-        .order_by("-created_at")
-        .first()
-    )
+
+        for r in candidates:
+            if KeywordMetric.objects.filter(project=project, run=r).exists():
+                source_run = r
+                break
 
     if not source_run:
         messages.warning(
             request,
-            "No hay CSV importado todavía. Importa desde Keyword Planner (Download CSV) y luego genera Close Variants.",
+            "No hay snapshots con métricas todavía. Importa CSV (Keyword Planner → Download) "
+            "o genera un Overview/Magic primero.",
         )
         return redirect(f"{reverse('seo:keyword_magic', kwargs={'project_id': project.id})}?q={seed}")
 
-    run = build_close_variants_run(project=project, seed=seed, source_run=source_run, limit=200)
+    # 3) Dedupe fuerte (solo si no es force)
+    if not force:
+        cached = (
+            Run.objects.filter(
+                entity_object_id=project.id,
+                kind="keyword_research.close_variants",
+                status=Run.Status.SUCCESS,
+                inputs__seed=seed,
+                inputs__source_run_id=str(source_run.id),
+                inputs__limit=limit,
+                inputs__min_score=min_score_i,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        if cached:
+            messages.info(request, "Reusando Close Variants existente (dedupe).")
+            return redirect(
+                f"{reverse('seo:keyword_magic', kwargs={'project_id': project.id})}?q={seed}&run_id={cached.id}"
+            )
 
+    # 4) Generar run
+    run = build_close_variants_run(
+        project=project,
+        seed=seed,
+        source_run=source_run,
+        limit=limit,
+        min_score=min_score_i,
+        force=force,
+    )
+
+    # 5) Mensajes útiles
     if run.status == Run.Status.SUCCESS:
-        messages.success(request, f"Close variants generados: {run.outputs.get('count')}")
+        count = (run.outputs or {}).get("count")
+        messages.success(request, f"Close variants generados: {count}")
+
+        if (run.outputs or {}).get("count") == 0:
+            messages.warning(
+                request,
+                f"Close variants = 0. source_total={(run.outputs or {}).get('source_total')} "
+                f"filtered_out={(run.outputs or {}).get('filtered_out')}. "
+                "Proba bajando min_score a 1 o revisa si el CSV tiene keywords parecidas.",
+            )
     else:
         messages.error(request, "Falló la generación de close variants. Revisa el Run.")
 
-    # Cargamos la página con este run seleccionado
-    return redirect(f"{reverse('seo:keyword_magic', kwargs={'project_id': project.id})}?q={seed}")
+    # 6) Volver con run_id SIEMPRE
+    return redirect(
+        f"{reverse('seo:keyword_magic', kwargs={'project_id': project.id})}?q={seed}&run_id={run.id}"
+    )
+
+@login_required
+def artifact_download(request, artifact_id: int):
+    art = RunArtifact.objects.filter(id=artifact_id).select_related("run").first()
+    if not art or not art.storage_path:
+        raise Http404("Artifact not found")
+
+    p = Path(art.storage_path)
+    if not p.is_absolute():
+        p = Path(settings.BASE_DIR) / p
+    if not p.exists():
+        raise Http404("File missing")
+
+    ctype, _ = mimetypes.guess_type(p.name)
+    ctype = ctype or "application/octet-stream"
+
+    return FileResponse(
+        open(p, "rb"),
+        as_attachment=True,
+        filename=art.name,
+        content_type=ctype,
+    )

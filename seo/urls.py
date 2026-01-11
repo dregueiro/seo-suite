@@ -1,7 +1,7 @@
 from django.urls import path
 
-from seo import views
-from seo import views_integrations
+from . import views
+from . import views_integrations
 
 app_name = "seo"
 
