@@ -34,6 +34,7 @@ urlpatterns = [
     path("projects/<int:project_id>/keywords/magic/export.csv", views.keyword_magic_export_csv, name="keyword_magic_export_csv"),
     # imports
    # path("projects/<int:project_id>/keywords/import-csv/", views.keyword_planner_csv_import, name="keyword_planner_csv_import"),
+    path("artifacts/<int:artifact_id>/download/", views.artifact_download, name="artifact_download"),
 
 
     path(

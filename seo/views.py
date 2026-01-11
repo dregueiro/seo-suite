@@ -1,5 +1,10 @@
 # seo/views.py
-import csv,hashlib, io, os, json, mimetypes
+import csv
+import hashlib
+import io
+import os
+import json
+import mimetypes
 
 from pathlib import Path
 from django.conf import settings
@@ -9,7 +14,7 @@ from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.apps import apps
 from django.http import Http404,FileResponse,HttpResponse
-from django.urls import reverse
+from django.urls import reverse, NoReverseMatch
 from django.db.models import Q
 from pathlib import Path
 
@@ -23,7 +28,49 @@ from reportlab.lib.pagesizes import LETTER
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 from django.views.decorators.http import require_POST
+from keyword_research.services.dataforseo_keyword_magic import build_dataforseo_keyword_magic_run
 
+def _dataforseo_is_configured() -> bool:
+    return bool(getattr(settings, "DATAFORSEO_LOGIN", "") and getattr(settings, "DATAFORSEO_PASSWORD", ""))
+
+@login_required
+@require_POST
+def keyword_magic_fetch_dataforseo(request, project_id: int):
+    project = get_object_or_404(Project, id=project_id)
+    seed = (request.POST.get("seed") or request.POST.get("q") or "").strip()
+
+    if not seed:
+        messages.error(request, "Falta seed.")
+        return redirect(reverse("seo:keyword_magic", args=[project.id]))
+
+    if not _dataforseo_is_configured():
+        messages.warning(request, "DataForSEO no está configurado (DATAFORSEO_LOGIN/PASSWORD).")
+        return redirect(f"{reverse('seo:keyword_magic', args=[project.id])}?q={seed}")
+
+    limit_raw = (request.POST.get("limit") or "200").strip()
+    try:
+        limit = int(limit_raw)
+    except Exception:
+        limit = 200
+
+    language_code = (request.POST.get("language_code") or "en").strip()
+    location_name = (request.POST.get("location_name") or "United States").strip()
+
+    run = build_dataforseo_keyword_magic_run(
+        project=project,
+        seed=seed,
+        limit=limit,
+        language_code=language_code,
+        location_name=location_name,
+        force=(request.POST.get("force") == "1"),
+    )
+
+    if run.status == Run.Status.SUCCESS:
+        messages.success(request, f"DataForSEO OK: {run.outputs.get('created_metrics')} keywords guardadas.")
+    else:
+        messages.error(request, "Falló DataForSEO. Revisa el Run.")
+
+    return redirect(f"{reverse('seo:keyword_magic', args=[project.id])}?q={seed}&run_id={run.id}")
 
 
 @login_required
@@ -361,14 +408,31 @@ def keyword_overview(request, project_id: int):
     }
     return render(request, "seo/keyword_overview.html", ctx)
 
+def _safe_outputs(obj):
+    """
+    Devuelve siempre un dict.
+    Soporta outputs dict, None, y JSON string.
+    """
+    if isinstance(obj, dict):
+        return obj
+    if isinstance(obj, str):
+        try:
+            val = json.loads(obj)
+            return val if isinstance(val, dict) else {}
+        except Exception:
+            return {}
+    return {}
+
+
 @login_required
 def keyword_magic(request, project_id: int):
     project = get_object_or_404(Project, id=project_id)
 
-    # Filtros UI (seguros aunque no existan en template)
+    # Filtros UI
     q = (request.GET.get("q") or "").strip()
     run_id = (request.GET.get("run_id") or "").strip()
     seed_from_run = ""
+
     if run_id and not q:
         r = Run.objects.filter(id=run_id, entity_object_id=project.id).first()
         if r:
@@ -386,6 +450,7 @@ def keyword_magic(request, project_id: int):
         "keyword_research.mock.keyword_magic",
         "keyword_research.ads.keyword_planner_csv_import",
         "keyword_research.close_variants",
+        "keyword_research.dataforseo.keyword_magic",
     ]
 
     recent_runs = (
@@ -402,7 +467,7 @@ def keyword_magic(request, project_id: int):
     if run_id:
         selected_run = Run.objects.filter(id=run_id, entity_object_id=project.id).first()
 
-    # 2) runs por seed
+    # 2) runs por seed (inputs seed o keyword)
     if seed:
         base_qs = (
             Run.objects.filter(
@@ -420,11 +485,13 @@ def keyword_magic(request, project_id: int):
     # 3) fallback: último run
     if not selected_run and recent_runs:
         selected_run = recent_runs[0]
-#  FIX: si no vino q, lo inferimos del selected_run.inputs
+
+    # FIX: si no vino q, inferimos del selected_run.inputs
     if (not q) and selected_run:
-            inp = selected_run.inputs or {}
-            q = (inp.get("seed") or inp.get("keyword") or "").strip()
- #  seed SIEMPRE se basa en q ya resuelto
+        inp = selected_run.inputs or {}
+        q = (inp.get("seed") or inp.get("keyword") or "").strip()
+
+    # seed SIEMPRE se basa en q ya resuelto
     seed = q
 
     selected_run_admin_url = None
@@ -435,11 +502,10 @@ def keyword_magic(request, project_id: int):
         selected_run_admin_url = f"/admin/core/run/{selected_run.id}/change/"
         artifacts_qs = RunArtifact.objects.filter(run=selected_run).order_by("-created_at")
 
-        # ✅ Si el run es close_variants -> leemos JSON artifact (NO KeywordMetric)
+        # Si el run es close_variants -> leemos JSON artifact (NO KeywordMetric)
         if selected_run.kind == "keyword_research.close_variants":
             close_variants_items = _load_close_variants_items(selected_run)
 
-            # Normalizamos a formato “tipo KeywordMetric” para que el template no rompa
             metrics_list = []
             for it in close_variants_items:
                 metrics_list.append(type("Obj", (), it))
@@ -466,11 +532,15 @@ def keyword_magic(request, project_id: int):
     else:
         metrics_list = []
 
-    # Dropdown labels (si lo usás en templates)
+    # outputs seguros (no romper templates)
+    run_outputs = _safe_outputs(selected_run.outputs) if selected_run else {}
+
+    # Dropdown labels
     def _run_label(r: Run) -> str:
         inp = r.inputs or {}
         qq = inp.get("seed") or inp.get("keyword") or ""
-        created = (r.outputs or {}).get("created_metrics")
+        out = _safe_outputs(r.outputs)
+        created = out.get("created_metrics")
         created_txt = f" | metrics:{created}" if created is not None else ""
         q_txt = f" | q:{qq}" if qq else ""
         return f"{r.created_at:%Y-%m-%d %H:%M} | {r.status} | {r.kind}{q_txt}{created_txt}"
@@ -508,7 +578,6 @@ def keyword_magic(request, project_id: int):
             ideas_related.append(m)
             continue
 
-        # Broad (resto)
         ideas_broad.append(m)
 
     def _k_volume(x):
@@ -538,33 +607,33 @@ def keyword_magic(request, project_id: int):
     ideas_related = ideas_related[:50]
     ideas_broad = ideas_broad[:50]
 
-
-    # rows para el template "analytics" (si lo usás)
+    # rows para template analytics
     rows = []
     for m in metrics_list:
         rows.append({
             "keyword": m.keyword,
-            "avg_monthly_searches": m.avg_monthly_searches,
-            "cpc": (m.cpc_micros / 1_000_000) if getattr(m, "cpc_micros", None) else None,
-            "competition_level": m.competition_level,
-            "source": m.source,
+            "avg_monthly_searches": getattr(m, "avg_monthly_searches", None),
+            "cpc": (getattr(m, "cpc_micros", None) / 1_000_000) if getattr(m, "cpc_micros", None) else None,
+            "competition_level": getattr(m, "competition_level", None),
+            "source": getattr(m, "source", None),
         })
 
-    # artifacts para template (download_url safe)
+    # artifacts para template (download_url robusto)
     artifacts = []
     for a in artifacts_qs:
         artifacts.append({
             "name": a.name,
-            "download_url": reverse("seo:artifact_download", args=[a.id]),
-
+            "download_url": _artifact_download_url(a.id),
         })
-        # Source runs disponibles para Close Variants (cualquier snapshot que tenga KeywordMetric)
+
+    # Source runs disponibles para Close Variants (cualquier snapshot que tenga KeywordMetric)
     source_kinds = [
         "keyword_research.ads.keyword_planner_csv_import",
         "keyword_research.ads.keyword_overview",
         "keyword_research.mock.keyword_overview",
         "keyword_research.ads.keyword_magic",
         "keyword_research.mock.keyword_magic",
+        "keyword_research.dataforseo.keyword_magic",
     ]
 
     candidate_source_runs = (
@@ -574,13 +643,30 @@ def keyword_magic(request, project_id: int):
 
     source_runs_rows = []
     for r in candidate_source_runs:
-        # solo mostramos los que realmente tienen métricas (evita selects vacíos)
         if KeywordMetric.objects.filter(project=project, run=r).exists():
             inp = r.inputs or {}
             qtxt = (inp.get("seed") or inp.get("keyword") or "").strip()
             label = f"{r.created_at:%Y-%m-%d %H:%M} · {r.kind.split('.')[-1]} · {qtxt or '-'}"
             source_runs_rows.append((str(r.id), label))
 
+    # ---- Run summary “plano” (para templates, sin .outputs.key) ----
+    run_keywords_count = (
+        run_outputs.get("created_metrics")
+        or run_outputs.get("count")
+        or run_outputs.get("rows_count")
+        or None
+    )
+    run_cost_usd = (
+        run_outputs.get("cost_total_usd")
+        or run_outputs.get("dataforseo_cost_usd")
+        or run_outputs.get("cost_usd")
+        or None
+    )
+    run_source_total = run_outputs.get("source_total")
+    run_prefilter_count = run_outputs.get("prefilter_count")
+    run_skipped_by_prefilter = run_outputs.get("skipped_by_prefilter")
+    run_algo_version = run_outputs.get("algo_version")
+    run_fallback_used = run_outputs.get("fallback_used")
 
     return render(
         request,
@@ -590,25 +676,26 @@ def keyword_magic(request, project_id: int):
             "subTitle": project.name,
             "project": project,
 
-            # template analytics
             "rows": rows,
             "q": q,
+            "seed": seed,
+            "keyword": seed,
+
             "min_volume": min_volume,
             "competition": competition,
             "include": include,
             "exclude": exclude,
+            "sort": sort,
+
             "run": selected_run,
+            "run_outputs": run_outputs,
             "recent_runs": recent_runs,
+            "runs": runs,
+
             "artifacts": artifacts,
             "ads_can_fetch": ads_can_fetch,
             "has_export_csv": True,
-            "sort": sort,
 
-
-            # compat
-            "seed": seed,
-            "keyword": seed,
-            "runs": runs,
             "selected_run": selected_run,
             "metrics": metrics_list,
             "close_variants_items": close_variants_items,
@@ -617,15 +704,20 @@ def keyword_magic(request, project_id: int):
             "selected_run_admin_url": selected_run_admin_url,
             "source_runs_rows": source_runs_rows,
 
-
-            # tabs
             "ideas_broad": ideas_broad,
             "ideas_questions": ideas_questions,
             "ideas_related": ideas_related,
+
+            # ✅ summary seguro para template
+            "run_keywords_count": run_keywords_count,
+            "run_cost_usd": run_cost_usd,
+            "run_source_total": run_source_total,
+            "run_prefilter_count": run_prefilter_count,
+            "run_skipped_by_prefilter": run_skipped_by_prefilter,
+            "run_algo_version": run_algo_version,
+            "run_fallback_used": run_fallback_used,
         },
     )
-
-
 
 
 @login_required

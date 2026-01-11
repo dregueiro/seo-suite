@@ -28,6 +28,30 @@
       <button class="btn btn-primary" type="submit" form="magicForm" {% if not ads_can_fetch %}disabled{% endif %}>
         Fetch (Ads)
       </button>
+      <form method="post"
+            action="{% url 'seo:keyword_magic_fetch_dataforseo' project.id %}"
+            class="d-inline d-flex gap-2 align-items-center flex-wrap">
+        {% csrf_token %}
+        <input type="hidden" name="seed" value="{{ seed|default:q|default:'' }}" data-sync-seed>
+
+        <input type="text" name="location_name" value="United States"
+              class="form-control form-control-sm" style="width: 170px;" />
+
+        <input type="text" name="language_code" value="en"
+              class="form-control form-control-sm" style="width: 80px;" />
+
+        <input type="number" name="limit" value="200" min="10" max="1000"
+              class="form-control form-control-sm" style="width: 110px;" />
+
+        <label class="form-check form-check-inline m-0">
+          <input class="form-check-input" type="checkbox" name="force" value="1">
+          <span class="form-check-label">Force</span>
+        </label>
+
+        <button class="btn btn-outline-dark" type="submit" {% if not q %}disabled{% endif %}>
+          Fetch (DataForSEO)
+        </button>
+      </form>
 
       <a class="btn btn-outline-secondary" href="{% url 'seo:project_setup' project.id %}">
         Setup
@@ -50,6 +74,7 @@
               {{ label }}
             </option>
           {% endfor %}
+        </select>
           <input type="number" name="min_score" value="2" min="1" max="10"
           class="form-control form-control-sm" style="width: 100px;" />
 
@@ -57,9 +82,6 @@
             <input class="form-check-input" type="checkbox" name="force" value="1">
             <span class="form-check-label">Force</span>
           </label>
-
-        </select>
-
         <input type="number" name="limit" value="200" min="10" max="1000"
               class="form-control form-control-sm" style="width: 110px;" />
 
@@ -103,6 +125,24 @@
 
   <div class="card mb-3">
     <div class="card-body">
+      {% if run and run.kind == "keyword_research.close_variants" and run.outputs %}
+        <div class="alert alert-info py-2 mb-3">
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <span><strong>Close Variants</strong></span>
+            <span>· Seed: <code>{{ run.outputs.seed }}</code></span>
+            <span>· Count: <strong>{{ run.outputs.count }}</strong></span>
+            <span>· Source total: {{ run.outputs.source_total }}</span>
+            <span>· Evaluated: {{ run.outputs.evaluated_count }}</span>
+            <span>· Skipped: {{ run.outputs.skipped_by_prefilter }}</span>
+            <span>· Min score: {{ run.outputs.min_score }}</span>
+          </div>
+          {% if run.outputs.csv_error %}
+            <div class="mt-2 text-danger small">
+              CSV artifact error: {{ run.outputs.csv_error }}
+            </div>
+          {% endif %}
+        </div>
+      {% endif %}
 
       <form id="magicForm" method="get" class="row g-2 align-items-end">
 
@@ -167,6 +207,45 @@
 
     </div>
   </div>
+{% if run %}
+  <div class="card mb-3">
+    <div class="card-body d-flex justify-content-between flex-wrap gap-3">
+      <div>
+        <div class="text-muted small">Run</div>
+        <div class="fw-semibold">{{ run.kind }}</div>
+        <div class="text-muted small">
+          {{ run.created_at|date:"M j, Y, P" }} · {{ run.status }}
+        </div>
+      </div>
+
+      <div class="d-flex gap-4 flex-wrap">
+        <div>
+          <div class="text-muted small">Keywords</div>
+            <div class="fw-semibold">
+              {% if run_outputs.created_metrics %}
+                {{ run_outputs.created_metrics }}
+              {% elif run_outputs.count %}
+                {{ run_outputs.count }}
+              {% else %}
+                -
+              {% endif %}
+            </div>
+        </div>
+        <div>
+          <div class="text-muted small">Cost USD</div>
+          <div class="fw-semibold">{{ run.outputs.cost_usd|default:"-" }}</div>
+        </div>
+        <div>
+          <div class="text-muted small">Artifacts</div>
+          <div class="fw-semibold">
+            {% if run.outputs.artifact_csv_id %}CSV #{{ run.outputs.artifact_csv_id }}{% endif %}
+            {% if run.outputs.artifact_json_id %} · JSON #{{ run.outputs.artifact_json_id }}{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endif %}
 
   <div class="row">
 
